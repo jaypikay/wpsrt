@@ -17,6 +17,8 @@ from .wallpapers import move_wallpaper, scan_directory
     default=Path("~/Pictures/wallpapers/by-resolution").expanduser(),
 )
 def sort(source: Path, target: Path):
+    source = Path(source)
+    target = Path(target)
     if not target.exists():
         target.mkdir()
     for wallpaper in scan_directory(source):
