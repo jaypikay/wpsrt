@@ -75,14 +75,6 @@ repos:
         additional_dependencies: [flake8-typing-imports==1.12.0]
         args: [--max-line-length, '120']
 
-  # toml
-  - repo: https://github.com/macisamuele/language-formatters-pre-commit-hooks
-    rev: v2.4.0
-    hooks:
-      - id: pretty-format-toml
-        args: [--autofix]
-        files: pyproject.toml
-
   # yaml
   - repo: https://github.com/jumanjihouse/pre-commit-hook-yamlfmt
     rev: 0.2.2
