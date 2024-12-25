@@ -6,8 +6,8 @@ Sort wallpapers by their resolution.
 
 ### Pipx
 
-```
-pipx install git+https://git.goatpr0n.de/public/wpsrt.git
+```shell
+pipx install git+https://github.com/jaypikay/wpsrt
 ```
 
 ## Usage
