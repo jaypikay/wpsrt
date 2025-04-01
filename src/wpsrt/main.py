@@ -16,7 +16,8 @@ from .wallpapers import move_wallpaper, scan_directory
     type=click.Path(exists=False, file_okay=False, dir_okay=True),
     default=Path("~/Pictures/wallpapers/by-resolution").expanduser(),
 )
-def wpsort(source: Path, target: Path):
+def wpsort(source: Path, target: Path) -> None:
+    """Sort wallpapers found in source path to target location"""
     source = Path(source)
     target = Path(target)
     if not target.exists():
