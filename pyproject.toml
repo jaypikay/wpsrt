@@ -28,3 +28,8 @@ push = true
 [tool.bumpver.file_patterns]
 "pyproject.toml" = ['^version = "{version}"', '^current_version = "{version}"']
 "README.md" = ['{version}$']
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.2.0",
+]
