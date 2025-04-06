@@ -1,6 +1,6 @@
 [project]
 name = "wpsrt"
-version = "2.0.30"
+version = "2.0.31"
 description = ""
 authors = [{ name = "jpk", email = "jpk@goatpr0n.de" }]
 requires-python = "~=3.12"
@@ -14,7 +14,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.bumpver]
-current_version = "2.0.30"
+current_version = "2.0.31"
 version_pattern = "MAJOR.MINOR.PATCH"
 commit_message = "bump version {old_version} -> {new_version}"
 tag_message = "{new_version}"

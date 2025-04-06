@@ -1,4 +1,4 @@
-# Wpsrt v2.0.30 - Command Usage Overview
+# Wpsrt v2.0.31 - Command Usage Overview
 
 # wpsort
 ```
