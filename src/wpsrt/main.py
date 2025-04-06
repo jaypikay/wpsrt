@@ -25,6 +25,7 @@ def wpsort(source: Path, target: Path) -> None:
 
     click.echo(f"Scanning wallpaper directory {source}...")
     wallpapers = [wallpaper for wallpaper in scan_directory(source)]
+    moved_files = []
     with click.progressbar(wallpapers, label="Sorting wallpapers") as progress:
         for filename, (xres, yres) in progress:
             if filename.is_relative_to(target):
@@ -32,4 +33,8 @@ def wpsort(source: Path, target: Path) -> None:
             new_filename = move_wallpaper(
                 filename, target / f"{xres}x{yres}/{filename.name}"
             )
-            click.echo(new_filename)
+            moved_files.append(new_filename)
+
+    click.echo(f"Moved {len(moved_files)} files.")
+    for filename in moved_files:
+        click.echo(f"- {filename}")

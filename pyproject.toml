@@ -19,7 +19,7 @@ version_pattern = "MAJOR.MINOR.PATCH"
 commit_message = "bump version {old_version} -> {new_version}"
 tag_message = "{new_version}"
 tag_scope = "default"
-pre_commit_hook = ""
+pre_commit_hook = "scripts/uv-sync.sh"
 post_commit_hook = ""
 commit = true
 tag = true
@@ -30,6 +30,4 @@ push = true
 "README.md" = ['{version}$']
 
 [dependency-groups]
-dev = [
-    "pre-commit>=4.2.0",
-]
+dev = ["pre-commit>=4.2.0"]
