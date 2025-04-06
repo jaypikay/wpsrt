@@ -29,5 +29,11 @@ push = true
 "pyproject.toml" = ['^version = "{version}"', '^current_version = "{version}"']
 "README.md" = ['{version}$']
 
+[tool.uv.sources]
+clickusagemd = { git = "http://github.com/jaypikay/clickusagemd.git", rev = "1.0.1" }
+
 [dependency-groups]
-dev = ["pre-commit>=4.2.0"]
+dev = [
+    "clickusagemd",
+    "pre-commit>=4.2.0",
+]
