@@ -21,7 +21,7 @@ from .wallpapers import calculate_aspect_ratio, move_wallpaper, scan_directory
 @click.argument(
     "target",
     type=click.Path(exists=False, file_okay=False, dir_okay=True),
-    default=Path("~/Pictures/wallpapers/by-resolution").expanduser(),
+    default=Path("~/Pictures/wallpapers").expanduser(),
 )
 def wpsort(mode: str, source: Path, target: Path) -> None:
     """Sort wallpapers found in source path to target location"""
@@ -36,17 +36,17 @@ def wpsort(mode: str, source: Path, target: Path) -> None:
     with click.progressbar(wallpapers, label="Sorting wallpapers") as progress:
         for filename, (xres, yres) in progress:
             if mode == "resolution":
-                if filename.is_relative_to(target / f"{xres}x{yres}"):
+                if filename.is_relative_to(target / f"by-resolution/{xres}x{yres}"):
                     continue
                 new_filename = move_wallpaper(
-                    filename, target / f"{xres}x{yres}/{filename.name}"
+                    filename, target / f"by-resolution/{xres}x{yres}/{filename.name}"
                 )
             else:
                 ratio = calculate_aspect_ratio(xres, yres)
-                if filename.is_relative_to(target / f"{ratio}"):
+                if filename.is_relative_to(target / f"by-aspect-ratio/{ratio}"):
                     continue
                 new_filename = move_wallpaper(
-                    filename, target / f"{ratio}/{filename.name}"
+                    filename, target / f"by-aspect-ratio/{ratio}/{filename.name}"
                 )
             moved_files.append(new_filename)
 
