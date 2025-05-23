@@ -2,7 +2,7 @@ from pathlib import Path
 
 import click
 
-from .wallpapers import calculate_aspect_ratio, move_wallpaper, scan_directory
+from .wallpapers import sort_wallpapers, hash_wallpapers
 
 
 @click.command()
@@ -30,26 +30,7 @@ def wpsort(mode: str, source: Path, target: Path) -> None:
     if not target.exists():
         target.mkdir(parents=True)
 
-    click.echo(f"Scanning wallpaper directory {source}...")
-    wallpapers = [wallpaper for wallpaper in scan_directory(source)]
-    moved_files = []
-    with click.progressbar(wallpapers, label="Sorting wallpapers") as progress:
-        for filename, (xres, yres) in progress:
-            if mode == "resolution":
-                if filename.is_relative_to(target / f"by-resolution/{xres}x{yres}"):
-                    continue
-                new_filename = move_wallpaper(
-                    filename, target / f"by-resolution/{xres}x{yres}/{filename.name}"
-                )
-            else:
-                ratio = calculate_aspect_ratio(xres, yres)
-                if filename.is_relative_to(target / f"by-aspect-ratio/{ratio}"):
-                    continue
-                new_filename = move_wallpaper(
-                    filename, target / f"by-aspect-ratio/{ratio}/{filename.name}"
-                )
-            moved_files.append(new_filename)
-
-    click.echo(f"Moved {len(moved_files)} file(s).")
-    for filename in moved_files:
-        click.echo(f"- {filename}")
+    if mode in ["resolution", "ratio"]:
+        sort_wallpapers(mode, source, target)
+    elif mode in ["hash"]:
+        hash_wallpapers(target)
