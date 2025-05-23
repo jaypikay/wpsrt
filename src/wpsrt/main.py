@@ -9,7 +9,7 @@ from .wallpapers import calculate_aspect_ratio, move_wallpaper, scan_directory
 @click.option(
     "-m",
     "--mode",
-    type=click.Choice(["resolution", "ratio"]),
+    type=click.Choice(["resolution", "ratio", "hash"]),
     default="resolution",
     help="Sort by resolution or apsect ration",
 )
@@ -28,7 +28,7 @@ def wpsort(mode: str, source: Path, target: Path) -> None:
     source = Path(source)
     target = Path(target)
     if not target.exists():
-        target.mkdir()
+        target.mkdir(parents=True)
 
     click.echo(f"Scanning wallpaper directory {source}...")
     wallpapers = [wallpaper for wallpaper in scan_directory(source)]

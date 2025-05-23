@@ -43,5 +43,5 @@ def scan_directory(directory: Path) -> Iterable[Tuple[Path, Tuple[int, int]]]:
 def move_wallpaper(wallpaper: Path, target: Path) -> Path:
     """Move file wallpaper to target location"""
     if not target.parent.exists():
-        target.parent.mkdir()
+        target.parent.mkdir(parents=True)
     return wallpaper.rename(target)
