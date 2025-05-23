@@ -50,6 +50,6 @@ def wpsort(mode: str, source: Path, target: Path) -> None:
                 )
             moved_files.append(new_filename)
 
-    click.echo(f"Moved {len(moved_files)} files.")
+    click.echo(f"Moved {len(moved_files)} file(s).")
     for filename in moved_files:
         click.echo(f"- {filename}")
