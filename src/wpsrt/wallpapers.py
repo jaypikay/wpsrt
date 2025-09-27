@@ -8,13 +8,14 @@ It includes functions to:
 - Sort wallpapers into subdirectories based on resolution or aspect ratio.
 - Identify duplicate images by calculating and comparing perceptual hashes.
 """
+
 import os
 from pathlib import Path
-from typing import Iterable, Tuple
+from typing import Iterable
 
 import click
 import imagehash
-from PIL import Image, UnidentifiedImageError, ImageFile
+from PIL import Image, UnidentifiedImageError
 
 
 def calculate_aspect_ratio(width: int, height: int) -> str:
@@ -50,7 +51,7 @@ def calculate_aspect_ratio(width: int, height: int) -> str:
     return f"{simplified_width}:{simplified_height}"
 
 
-def scan_directory(directory: Path) -> Iterable[Tuple[Path, ImageFile.ImageFile]]:
+def scan_directory(directory: Path) -> Iterable[tuple[Path, tuple[int, int]]]:
     """
     Scans a directory for image files and yields their paths and PIL Image objects.
 
@@ -72,7 +73,8 @@ def scan_directory(directory: Path) -> Iterable[Tuple[Path, ImageFile.ImageFile]
             if filename.is_file():
                 try:
                     image = Image.open(filename)
-                    yield (filename, image)
+                    yield (filename, image.size)
+                    image.close()  # free image resource, to reduce simultaniously open files
                 except UnidentifiedImageError:
                     # Skip files that are not recognized as images
                     click.echo(f"Skipping non-image file: {filename}", err=True)
@@ -113,31 +115,29 @@ def sort_wallpapers(mode: str, source: Path, target: Path) -> None:
                 Subdirectories will be created here based on the sorting mode.
     """
     click.echo(f"Scanning wallpaper directory {source}...")
-    wallpapers = list(scan_directory(source)) # Collect all wallpapers first
+    wallpapers = list(scan_directory(source))  # Collect all wallpapers first
     moved_files = []
     with click.progressbar(wallpapers, label="Sorting wallpapers") as progress:
-        for filename, image in progress:
-            xres, yres = image.size
+        for filename, image_size in progress:
+            xres, yres = image_size
             if mode == "resolution":
                 target_subdir = target / f"by-resolution/{xres}x{yres}"
                 # Skip if file is already in the correct target subdirectory
                 if filename.is_relative_to(target_subdir):
                     continue
-                new_filename = move_wallpaper(
-                    filename, target_subdir / filename.name
-                )
-            elif mode == "ratio": # Added elif for clarity, though 'else' would also work
+                new_filename = move_wallpaper(filename, target_subdir / filename.name)
+            elif (
+                mode == "ratio"
+            ):  # Added elif for clarity, though 'else' would also work
                 ratio = calculate_aspect_ratio(xres, yres)
                 target_subdir = target / f"by-aspect-ratio/{ratio}"
                 # Skip if file is already in the correct target subdirectory
                 if filename.is_relative_to(target_subdir):
                     continue
-                new_filename = move_wallpaper(
-                    filename, target_subdir / filename.name
-                )
+                new_filename = move_wallpaper(filename, target_subdir / filename.name)
             else:
                 # Should not happen due to click.Choice in main.py, but good for robustness
-                click.echo(f"Unknown sort mode: {mode}", err=True, color="red")
+                click.secho(f"Unknown sort mode: {mode}", err=True, fg="red")
                 continue
             moved_files.append(new_filename)
 
@@ -146,7 +146,9 @@ def sort_wallpapers(mode: str, source: Path, target: Path) -> None:
         click.echo(f"- {filename}")
 
 
-def hash_wallpapers(target: Path) -> list[tuple[Path, imagehash.ImageHash, ImageFile.ImageFile]]:
+def hash_wallpapers(
+    target: Path,
+) -> list[tuple[Path, imagehash.ImageHash, tuple[int, int]]]:
     """
     Scans a directory for images, calculates their perceptual hashes (phash),
     and prints this information.
@@ -165,21 +167,22 @@ def hash_wallpapers(target: Path) -> list[tuple[Path, imagehash.ImageHash, Image
             - image (ImageFile.ImageFile): The PIL Image object.
     """
     click.echo(f"Scanning wallpaper directory {target} for hashing...")
-    wallpapers = list(scan_directory(target)) # Collect all wallpapers first
-    hashes: list[tuple[Path, imagehash.ImageHash, ImageFile.ImageFile]] = []
+    wallpapers = list(scan_directory(target))  # Collect all wallpapers first
+    hashes: list[tuple[Path, imagehash.ImageHash, tuple[int, int]]] = []
     with click.progressbar(wallpapers, label="Hashing wallpapers") as progress:
-        for filename, image in progress:
+        for filename, _ in progress:
             try:
+                image = Image.open(filename)
                 phash = imagehash.phash(image)
-                hashes.append((filename, phash, image))
+                hashes.append((filename, phash, image.size))
             except Exception as e:
-                click.echo(f"Error hashing {filename}: {e}", err=True, color="red")
+                click.secho(f"Error hashing {filename}: {e}", err=True, fg="red")
                 continue
 
     # Output the collected hash information
     # This part might be refactored later if actual duplicate removal is implemented
-    for filename, phash, image in hashes:
-        xres, yres = image.size
+    for filename, phash, image_size in hashes:
+        xres, yres = image_size
         # Use click.echo for consistent output formatting
         click.echo(f"{phash} {xres:6d}x{yres:<6d} {filename}")
 
