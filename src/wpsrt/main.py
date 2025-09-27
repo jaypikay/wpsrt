@@ -5,11 +5,12 @@ This script allows users to organize their wallpaper collections by sorting
 images into subdirectories based on their resolution, aspect ratio, or by
 removing duplicates based on their hash.
 """
+
 from pathlib import Path
 
 import click
 
-from .wallpapers import sort_wallpapers, hash_wallpapers
+from .wallpapers import hash_wallpapers, sort_wallpapers
 
 
 @click.command()
