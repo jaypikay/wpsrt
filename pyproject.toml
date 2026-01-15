@@ -3,7 +3,7 @@ name = "wpsrt"
 version = "2.1.4"
 description = ""
 authors = [{ name = "jpk", email = "jpk@goatpr0n.de" }]
-requires-python = "~=3.12"
+requires-python = ">=3.12"
 dependencies = [
     "click>=8.1.8,<9",
     "imagehash>=4.3.2",
@@ -14,6 +14,7 @@ dependencies = [
 [project.scripts]
 wpsrt = "wpsrt.main:wpsort"
 wpconvert = "wpsrt.main:wpconvert"
+wpnsfwinspect = "wpsrt.inspector:nsfw_inspect"
 
 [build-system]
 requires = ["hatchling"]
