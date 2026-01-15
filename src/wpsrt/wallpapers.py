@@ -11,74 +11,19 @@ It includes functions to:
 
 import os
 from pathlib import Path
-from typing import Iterable
+from typing import Generator
 
 import click
-import imagehash
-from PIL import Image, UnidentifiedImageError
+
+from wpsrt.errors import SkipUnsupportedImage, UnknownSortMethod
+from wpsrt.methods import aspectratio, resolution
 
 
-def calculate_aspect_ratio(width: int, height: int) -> str:
-    """
-    Calculates the aspect ratio of an image given its width and height.
-
-    The aspect ratio is simplified by dividing both width and height by their
-    greatest common divisor (GCD).
-
-    Args:
-        width: The width of the image in pixels.
-        height: The height of the image in pixels.
-
-    Returns:
-        A string representing the simplified aspect ratio in 'W:H' format
-        (e.g., '16:9', '4:3').
-    """
-
-    def gcd(a, b):
-        """Computes the greatest common divisor of two integers."""
-        while b:
-            a, b = b, a % b
-        return a
-
-    # Find the GCD of width and height
-    divisor = gcd(width, height)
-
-    # Simplify the ratio
-    simplified_width = width // divisor
-    simplified_height = height // divisor
-
-    # Return the ratio as a string
-    return f"{simplified_width}:{simplified_height}"
-
-
-def scan_directory(directory: Path) -> Iterable[tuple[Path, tuple[int, int]]]:
-    """
-    Scans a directory for image files and yields their paths and PIL Image objects.
-
-    This function recursively walks through the given directory. For each file found,
-    it attempts to open it as an image. If successful, it yields a tuple
-    containing the file's Path object and the PIL ImageFile.ImageFile object.
-    It skips files that cannot be identified as images by PIL.
-
-    Args:
-        directory: The Path object representing the directory to scan.
-
-    Yields:
-        An iterable of tuples, where each tuple contains:
-            - filename (Path): The path to an image file.
-            - image (ImageFile.ImageFile): The PIL Image object for the image file.
-    """
+def scan_directory(directory: Path) -> Generator[Path]:
     for root, _, filenames in os.walk(directory):
         for filename in [Path(os.path.join(root, fname)) for fname in filenames]:
             if filename.is_file():
-                try:
-                    image = Image.open(filename)
-                    yield (filename, image.size)
-                    image.close()  # free image resource, to reduce simultaniously open files
-                except UnidentifiedImageError:
-                    # Skip files that are not recognized as images
-                    click.echo(f"Skipping non-image file: {filename}", err=True)
-                    continue
+                yield filename
 
 
 def move_wallpaper(wallpaper: Path, target: Path) -> Path:
@@ -115,97 +60,32 @@ def sort_wallpapers(mode: str, source: Path, target: Path) -> None:
                 Subdirectories will be created here based on the sorting mode.
     """
     click.echo(f"Scanning wallpaper directory {source}...")
-    wallpapers = list(scan_directory(source))  # Collect all wallpapers first
+    found_files = list(scan_directory(source))  # Collect all wallpapers first
     moved_files = []
-    with click.progressbar(wallpapers, label="Sorting wallpapers") as progress:
-        for filename, image_size in progress:
-            xres, yres = image_size
-            if mode == "resolution":
-                target_subdir = target / f"by-resolution/{xres}x{yres}"
-                # Skip if file is already in the correct target subdirectory
-                if filename.is_relative_to(target_subdir):
-                    continue
-                new_filename = move_wallpaper(filename, target_subdir / filename.name)
-            elif (
-                mode == "ratio"
-            ):  # Added elif for clarity, though 'else' would also work
-                ratio = calculate_aspect_ratio(xres, yres)
-                target_subdir = target / f"by-aspect-ratio/{ratio}"
-                # Skip if file is already in the correct target subdirectory
-                if filename.is_relative_to(target_subdir):
-                    continue
-                new_filename = move_wallpaper(filename, target_subdir / filename.name)
-            else:
-                # Should not happen due to click.Choice in main.py, but good for robustness
-                click.secho(f"Unknown sort mode: {mode}", err=True, fg="red")
-                continue
-            moved_files.append(new_filename)
-
-    click.echo(f"Moved {len(moved_files)} file(s).")
-    for filename in moved_files:
-        click.echo(f"- {filename}")
-
-
-def hash_wallpapers(
-    target: Path,
-) -> list[tuple[Path, imagehash.ImageHash, tuple[int, int]]]:
-    """
-    Scans a directory for images, calculates their perceptual hashes (phash),
-    and prints this information.
-
-    This function is useful for identifying potential duplicate images by comparing
-    their hash values. It prints the phash, resolution (formatted as 'WIDTHxHEIGHT'),
-    and filename for each image. Example: `d8e8c0c0c0c0e0e0 1920x1080 /path/to/image.jpg`
-
-    Args:
-        target: The Path object of the directory to scan for wallpapers.
-
-    Returns:
-        A list of tuples, where each tuple contains:
-            - filename (Path): The path to the image file.
-            - phash (imagehash.ImageHash): The perceptual hash of the image.
-            - image (ImageFile.ImageFile): The PIL Image object.
-    """
-    click.echo(f"Scanning wallpaper directory {target} for hashing...")
-    wallpapers = list(scan_directory(target))  # Collect all wallpapers first
-    hashes: list[tuple[Path, imagehash.ImageHash, tuple[int, int]]] = []
-    with click.progressbar(wallpapers, label="Hashing wallpapers") as progress:
-        for filename, _ in progress:
+    skipped_files = []
+    with click.progressbar(found_files, label="Sorting wallpapers") as progress:
+        for filename in progress:
             try:
-                image = Image.open(filename)
-                phash = imagehash.phash(image)
-                hashes.append((filename, phash, image.size))
-            except Exception as e:
-                click.secho(f"Error hashing {filename}: {e}", err=True, fg="red")
+                match mode:
+                    case "resolution":
+                        fname = resolution.process_file(filename)
+                    case "ratio":
+                        fname = aspectratio.process_file(filename)
+                    case _:
+                        click.secho(
+                            "WARN: Unknown sorting method specified.",
+                            fg="yellow",
+                            err=True,
+                        )
+                        raise UnknownSortMethod
+
+                target_subdir_fname = target / fname
+                new_filename = move_wallpaper(filename, target_subdir_fname)
+                moved_files.append(new_filename)
+            except SkipUnsupportedImage:
+                skipped_files.append(filename)
                 continue
 
-    # Output the collected hash information
-    # This part might be refactored later if actual duplicate removal is implemented
-    for filename, phash, image_size in hashes:
-        xres, yres = image_size
-        # Use click.echo for consistent output formatting
-        click.echo(f"{phash} {xres:6d}x{yres:<6d} {filename}")
-
-    return hashes
-
-
-def convert_wallpapers(extension: str, remove_original: bool, source: Path):
-    click.echo(f"Scanning wallpaper directory {source}...")
-    converted_files = []
-    for filename, _ in scan_directory(source):
-        if filename.as_posix().endswith(f".{extension}"):
-            try:
-                image = Image.open(filename)
-                new_filename = filename.with_suffix(".png")
-                if not new_filename.exists():
-                    click.echo(f"- Converting {filename.name} to PNG...")
-                    image.save(new_filename)
-                    if remove_original:
-                        filename.unlink()
-                    converted_files.append(filename)
-                image.close()
-            except UnidentifiedImageError:
-                continue
-    click.echo(f"Converted {len(converted_files)} file(s).")
-    for filename in converted_files:
-        click.echo(f"- {filename}")
+    click.echo(f"\nSummary\n{'=' * 25}")
+    click.echo(f"- Moved {len(moved_files)} file(s).")
+    click.echo(f"- Skipped {len(skipped_files)} file(s).")

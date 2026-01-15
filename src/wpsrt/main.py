@@ -10,7 +10,9 @@ from pathlib import Path
 
 import click
 
-from .wallpapers import sort_wallpapers, hash_wallpapers, convert_wallpapers
+from .wallpapers import sort_wallpapers
+from .tools.converter import convert_wallpapers
+from .tools.hashing import hash_wallpapers
 
 
 @click.command()
