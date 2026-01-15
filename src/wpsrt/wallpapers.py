@@ -94,6 +94,11 @@ def sort_wallpapers(mode: str, source: Path, target: Path) -> None:
             except SkipUnsupportedImage:
                 skipped_files += 1
                 continue
+            except AttributeError as ex:
+                click.secho(
+                    f"ERROR: {ex} while processing {filename}.", fg="RED", err=True
+                )
+                continue
 
     click.echo(f"\nSummary\n{'=' * 25}")
     click.echo(f"- Moved {moved_files:>8} file(s).")
