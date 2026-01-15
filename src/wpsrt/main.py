@@ -10,7 +10,7 @@ from pathlib import Path
 
 import click
 
-from .wallpapers import hash_wallpapers, sort_wallpapers
+from .wallpapers import sort_wallpapers, hash_wallpapers, convert_wallpapers
 
 
 @click.command()
@@ -56,3 +56,29 @@ def wpsort(mode: str, source: Path, target: Path) -> None:
         sort_wallpapers(mode, source, target)
     elif mode in ["hash"]:
         hash_wallpapers(target)
+
+
+@click.command()
+@click.option(
+    "-e", "--extension", type=str, default="webp", help="Convert of type EXT to png"
+)
+@click.option(
+    "-d",
+    "--delete",
+    type=bool,
+    default=False,
+    help="Remove original file after conversion",
+)
+@click.argument(
+    "source",
+    type=click.Path(exists=True, file_okay=False, dir_okay=True),
+    default=Path("~/Pictures/wallpapers").expanduser(),
+)
+def wpconvert(extension: str, delete: bool, source: Path) -> None:
+    """Convert images by extension `extension` to PNG."""
+    source = Path(source)
+
+    if extension in ["gif"]:
+        click.secho("Cannot convert gif to png!", fg="red")
+
+    convert_wallpapers(extension, delete, source)

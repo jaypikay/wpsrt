@@ -8,6 +8,7 @@ dependencies = ["click>=8.1.8,<9", "imagehash>=4.3.2", "pillow>=11.0.0,<12"]
 
 [project.scripts]
 wpsrt = "wpsrt.main:wpsort"
+wpconvert = "wpsrt.main:wpconvert"
 
 [build-system]
 requires = ["hatchling"]
