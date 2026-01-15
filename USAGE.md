@@ -1,4 +1,4 @@
-# Wpsrt v2.1.4 - Command Usage Overview
+# Wpsrt v2.2.0 - Command Usage Overview
 
 # wpsort
 ```
@@ -20,8 +20,23 @@ Usage: wpsrt  [OPTIONS] [SOURCE] [TARGET]
   placed.             If it doesn't exist, it will be created.
 
 Options:
-  -m, --mode [resolution|ratio|hash]
+  -m, --mode [resolution|ratio|hash|nsfw]
                                   Sort by resolution or aspect ratio.
+  -n, --nsfw-model FILE
   --help                          Show this message and exit.
+```
+
+# Wpsrt v2.2.0 - Command Usage Overview
+
+# wpconvert
+```
+Usage: wpsrt  [OPTIONS] [SOURCE]
+
+  Convert images by extension `extension` to PNG.
+
+Options:
+  -e, --extension TEXT  Convert of type EXT to png
+  -d, --delete BOOLEAN  Remove original file after conversion
+  --help                Show this message and exit.
 ```
 
