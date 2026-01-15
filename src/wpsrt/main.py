@@ -19,9 +19,15 @@ from .tools.hashing import hash_wallpapers
 @click.option(
     "-m",
     "--mode",
-    type=click.Choice(["resolution", "ratio", "hash"]),
+    type=click.Choice(["resolution", "ratio", "hash", "nsfw"]),
     default="resolution",
     help="Sort by resolution or aspect ratio.",
+)
+@click.option(
+    "-n",
+    "--nsfw-model",
+    type=click.Path(exists=True, file_okay=True, dir_okay=False),
+    default=None,
 )
 @click.argument(
     "source",
@@ -33,7 +39,7 @@ from .tools.hashing import hash_wallpapers
     type=click.Path(exists=False, file_okay=False, dir_okay=True),
     default=Path("~/Pictures/wallpapers").expanduser(),
 )
-def wpsort(mode: str, source: Path, target: Path) -> None:
+def wpsort(mode: str, nsfw_model: Path, source: Path, target: Path) -> None:
     """
     Sorts wallpapers from a source directory to a target directory.
 
@@ -54,7 +60,12 @@ def wpsort(mode: str, source: Path, target: Path) -> None:
     if not target.exists():
         target.mkdir(parents=True)
 
-    if mode in ["resolution", "ratio"]:
+    if nsfw_model:
+        from wpsrt.methods.nsfw import onnx_model_path
+
+        onnx_model_path = nsfw_model  # noqa: F811, F841
+
+    if mode in ["resolution", "ratio", "nsfw"]:
         sort_wallpapers(mode, source, target)
     elif mode in ["hash"]:
         hash_wallpapers(target)

@@ -4,7 +4,12 @@ version = "2.1.4"
 description = ""
 authors = [{ name = "jpk", email = "jpk@goatpr0n.de" }]
 requires-python = "~=3.12"
-dependencies = ["click>=8.1.8,<9", "imagehash>=4.3.2", "pillow>=11.0.0,<12"]
+dependencies = [
+    "click>=8.1.8,<9",
+    "imagehash>=4.3.2",
+    "nudenet>=3.4.2",
+    "pillow>=11.0.0,<12",
+]
 
 [project.scripts]
 wpsrt = "wpsrt.main:wpsort"
