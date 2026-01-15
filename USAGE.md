@@ -1,4 +1,4 @@
-# Wpsrt v2.3.0 - Command Usage Overview
+# Wpsrt v2.3.1 - Command Usage Overview
 
 # wpsort
 ```
@@ -26,7 +26,7 @@ Options:
   --help                          Show this message and exit.
 ```
 
-# Wpsrt v2.3.0 - Command Usage Overview
+# Wpsrt v2.3.1 - Command Usage Overview
 
 # wpconvert
 ```
@@ -38,5 +38,17 @@ Options:
   -e, --extension TEXT  Convert of type EXT to png
   -d, --delete BOOLEAN  Remove original file after conversion
   --help                Show this message and exit.
+```
+
+# Wpsrt v2.3.1 - Command Usage Overview
+
+# nsfw-inspect
+```
+Usage: wpsrt  [OPTIONS] [TARGET]
+
+Options:
+  -n, --nsfw-model FILE
+  -j, --jobs INTEGER
+  --help                 Show this message and exit.
 ```
 
