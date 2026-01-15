@@ -1,4 +1,4 @@
-# Wpsrt v2.2.0 - Command Usage Overview
+# Wpsrt v2.3.0 - Command Usage Overview
 
 # wpsort
 ```
@@ -26,7 +26,7 @@ Options:
   --help                          Show this message and exit.
 ```
 
-# Wpsrt v2.2.0 - Command Usage Overview
+# Wpsrt v2.3.0 - Command Usage Overview
 
 # wpconvert
 ```
