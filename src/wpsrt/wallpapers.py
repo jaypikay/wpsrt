@@ -16,7 +16,7 @@ from typing import Generator
 import click
 
 from wpsrt.errors import SkipUnsupportedImage, UnknownSortMethod
-from wpsrt.methods import aspectratio, resolution
+from wpsrt.methods import aspectratio, resolution, nsfw
 
 
 def scan_directory(directory: Path) -> Generator[Path]:
@@ -61,8 +61,11 @@ def sort_wallpapers(mode: str, source: Path, target: Path) -> None:
     """
     click.echo(f"Scanning wallpaper directory {source}...")
     found_files = list(scan_directory(source))  # Collect all wallpapers first
-    moved_files = []
-    skipped_files = []
+    moved_files = 0
+    skipped_files = 0
+    sfw_files = 0
+    nsfw_files = 0
+
     with click.progressbar(found_files, label="Sorting wallpapers") as progress:
         for filename in progress:
             try:
@@ -71,6 +74,12 @@ def sort_wallpapers(mode: str, source: Path, target: Path) -> None:
                         fname = resolution.process_file(filename)
                     case "ratio":
                         fname = aspectratio.process_file(filename)
+                    case "nsfw":
+                        fname = nsfw.process_file(filename)
+                        if "/NSFW/" in fname.as_posix():
+                            nsfw_files += 1
+                        else:
+                            sfw_files += 1
                     case _:
                         click.secho(
                             "WARN: Unknown sorting method specified.",
@@ -81,11 +90,15 @@ def sort_wallpapers(mode: str, source: Path, target: Path) -> None:
 
                 target_subdir_fname = target / fname
                 new_filename = move_wallpaper(filename, target_subdir_fname)
-                moved_files.append(new_filename)
+                moved_files += 1
             except SkipUnsupportedImage:
-                skipped_files.append(filename)
+                skipped_files += 1
                 continue
 
     click.echo(f"\nSummary\n{'=' * 25}")
-    click.echo(f"- Moved {len(moved_files)} file(s).")
-    click.echo(f"- Skipped {len(skipped_files)} file(s).")
+    click.echo(f"- Moved {moved_files:>8} file(s).")
+    click.echo(f"- Skipped {skipped_files:>6} file(s).")
+    if mode == "nsfw":
+        click.echo("-" * 25)
+        click.echo(f"- NSFW {nsfw_files:>9} file(s).")
+        click.echo(f"- SFW {sfw_files:>10} file(s).")
