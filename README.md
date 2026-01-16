@@ -1,4 +1,4 @@
-# Wallpaper Sorter - 2.3.4
+# Wallpaper Sorter - 2.3.5
 
 Sort wallpapers by their resolution.
 
