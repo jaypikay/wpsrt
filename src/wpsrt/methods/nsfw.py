@@ -2,12 +2,7 @@ from pathlib import Path
 
 from nudenet import NudeDetector
 
-onnx_model_path = None
-
-if not onnx_model_path:
-    Detector = NudeDetector()
-else:
-    Detector = NudeDetector(model_path=onnx_model_path)
+Detector = NudeDetector()
 
 FOLDER_PREFIX = "rating"
 
@@ -32,6 +27,12 @@ NSFW_THRESHOLDS = {
     "MALE_BREAST_EXPOSED": 0.5,
     "MALE_GENITALIA_EXPOSED": 0.4,
 }
+
+
+def reinitialize_detector(onnx_model_path: Path) -> NudeDetector:
+    global Detector
+    Detector = NudeDetector(model_path=onnx_model_path)
+    return Detector
 
 
 def has_identifier_above_theshold(

@@ -64,9 +64,9 @@ def wpsort(
         target.mkdir(parents=True)
 
     if nsfw_model:
-        from wpsrt.methods.nsfw import onnx_model_path  # pyright: ignore[reportUnusedImport]
+        from wpsrt.methods.nsfw import reinitialize_detector
 
-        onnx_model_path = nsfw_model  # noqa: F811, F841  # pyright: ignore[reportUnusedVariable]
+        reinitialize_detector(nsfw_model)
 
     if mode in ["resolution", "ratio", "nsfw"]:
         sort_wallpapers(mode, source, target, dry_run)
