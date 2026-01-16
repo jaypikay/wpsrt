@@ -99,7 +99,7 @@ def sort_wallpapers(
                 continue
             except AttributeError as ex:
                 click.secho(
-                    f"ERROR: {ex} while processing {filename}.", fg="RED", err=True
+                    f"ERROR: {ex} while processing {filename}.", fg="red", err=True
                 )
                 continue
 
