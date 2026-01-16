@@ -1,4 +1,4 @@
-# Wpsrt v2.3.1 - Command Usage Overview
+# Wpsrt v2.3.2 - Command Usage Overview
 
 # wpsort
 ```
@@ -23,10 +23,11 @@ Options:
   -m, --mode [resolution|ratio|hash|nsfw]
                                   Sort by resolution or aspect ratio.
   -n, --nsfw-model FILE
+  -d, --dry-run                   Do not perform any file actions
   --help                          Show this message and exit.
 ```
 
-# Wpsrt v2.3.1 - Command Usage Overview
+# Wpsrt v2.3.2 - Command Usage Overview
 
 # wpconvert
 ```
@@ -40,7 +41,7 @@ Options:
   --help                Show this message and exit.
 ```
 
-# Wpsrt v2.3.1 - Command Usage Overview
+# Wpsrt v2.3.2 - Command Usage Overview
 
 # nsfw-inspect
 ```
