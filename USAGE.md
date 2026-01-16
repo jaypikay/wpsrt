@@ -1,4 +1,4 @@
-# Wpsrt v2.3.2 - Command Usage Overview
+# Wpsrt v2.3.3 - Command Usage Overview
 
 # wpsort
 ```
@@ -27,7 +27,7 @@ Options:
   --help                          Show this message and exit.
 ```
 
-# Wpsrt v2.3.2 - Command Usage Overview
+# Wpsrt v2.3.3 - Command Usage Overview
 
 # wpconvert
 ```
@@ -41,7 +41,7 @@ Options:
   --help                Show this message and exit.
 ```
 
-# Wpsrt v2.3.2 - Command Usage Overview
+# Wpsrt v2.3.3 - Command Usage Overview
 
 # nsfw-inspect
 ```
