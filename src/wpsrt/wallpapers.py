@@ -104,9 +104,9 @@ def sort_wallpapers(
                 continue
 
     click.echo(f"\nSummary\n{'=' * 25}")
-    click.echo(f"- Moved {moved_files:>8} file(s).")
-    click.echo(f"- Skipped {skipped_files:>6} file(s).")
     if mode == "nsfw":
+        click.echo(f"- NSFW {nsfw_files:>10} file(s)")
+        click.echo(f"- SFW {sfw_files:>11} file(s)")
         click.echo("-" * 25)
-        click.echo(f"- NSFW {nsfw_files:>9} file(s).")
-        click.echo(f"- SFW {sfw_files:>10} file(s).")
+    click.echo(f"- Moved {moved_files:>9} file(s)")
+    click.echo(f"- Skipped {skipped_files:>7} file(s)")
