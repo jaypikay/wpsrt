@@ -2,6 +2,9 @@ version = 1
 revision = 3
 requires-python = ">=3.12"
 
+[manifest]
+build-constraints = [{ name = "setuptools", specifier = ">=70" }]
+
 [[package]]
 name = "cfgv"
 version = "3.4.0"

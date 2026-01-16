@@ -29,6 +29,7 @@ from .tools.hashing import hash_wallpapers
     type=click.Path(exists=True, file_okay=True, dir_okay=False),
     default=None,
 )
+@click.option("-d", "--dry-run", is_flag=True, help="Do not perform any file actions")
 @click.argument(
     "source",
     type=click.Path(exists=True, file_okay=False, dir_okay=True),
@@ -39,7 +40,9 @@ from .tools.hashing import hash_wallpapers
     type=click.Path(exists=False, file_okay=False, dir_okay=True),
     default=Path("~/Pictures/wallpapers").expanduser(),
 )
-def wpsort(mode: str, nsfw_model: Path, source: Path, target: Path) -> None:
+def wpsort(
+    mode: str, nsfw_model: Path, dry_run: bool, source: Path, target: Path
+) -> None:
     """
     Sorts wallpapers from a source directory to a target directory.
 
@@ -66,7 +69,7 @@ def wpsort(mode: str, nsfw_model: Path, source: Path, target: Path) -> None:
         onnx_model_path = nsfw_model  # noqa: F811, F841
 
     if mode in ["resolution", "ratio", "nsfw"]:
-        sort_wallpapers(mode, source, target)
+        sort_wallpapers(mode, source, target, dry_run)
     elif mode in ["hash"]:
         hash_wallpapers(target)
 

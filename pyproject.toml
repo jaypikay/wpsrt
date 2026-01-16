@@ -13,12 +13,15 @@ dependencies = [
 
 [project.scripts]
 wpsrt = "wpsrt.main:wpsort"
-wpconvert = "wpsrt.main:wpconvert"
-wpnsfwinspect = "wpsrt.inspector:nsfw_inspect"
+wpsrt-convert = "wpsrt.main:wpconvert"
+wpsrt-nsfwinspect = "wpsrt.inspector:nsfw_inspect"
 
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+[tool.uv]
+package = true
+build-constraint-dependencies = ["setuptools>=70"]
+
+[tool.uv.build-backend]
+source-include = ["models/*.onnx"]
 
 [tool.bumpver]
 current_version = "2.3.1"

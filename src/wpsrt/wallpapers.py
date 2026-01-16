@@ -46,7 +46,9 @@ def move_wallpaper(wallpaper: Path, target: Path) -> Path:
     return wallpaper.rename(target)
 
 
-def sort_wallpapers(mode: str, source: Path, target: Path) -> None:
+def sort_wallpapers(
+    mode: str, source: Path, target: Path, dry_run: bool = False
+) -> None:
     """
     Sorts wallpapers from a source directory into subdirectories within a target directory.
 
@@ -89,7 +91,8 @@ def sort_wallpapers(mode: str, source: Path, target: Path) -> None:
                         raise UnknownSortMethod
 
                 target_subdir_fname = target / fname
-                new_filename = move_wallpaper(filename, target_subdir_fname)
+                if not dry_run:
+                    move_wallpaper(filename, target_subdir_fname)
                 moved_files += 1
             except SkipUnsupportedImage:
                 skipped_files += 1
