@@ -60,7 +60,7 @@ def wpsort(
     """
     source = Path(source)
     target = Path(target)
-    if not target.exists():
+    if not target.exists() and not dry_run:
         target.mkdir(parents=True)
 
     if nsfw_model:
