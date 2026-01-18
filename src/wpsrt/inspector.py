@@ -16,6 +16,11 @@ def grep_beautifier(classification: dict) -> str:
         return "SFW"
 
 
+def analyse_image(detector: NudeDetector, image: str):
+    classification = detector.detect(image)
+    click.echo(f"{image}:nudenet:{grep_beautifier(classification)}")
+
+
 @click.command()
 @click.option(
     "-n",
@@ -23,18 +28,12 @@ def grep_beautifier(classification: dict) -> str:
     type=click.Path(exists=True, file_okay=True, dir_okay=False),
     default=None,
 )
-@click.option(
-    "-j",
-    "--jobs",
-    type=int,
-    default=4,
-)
 @click.argument(
     "target",
     type=click.Path(exists=True, file_okay=True, dir_okay=True),
     default=Path("~/Pictures/wallpapers").expanduser(),
 )
-def nsfw_inspect(nsfw_model: Path, jobs: int, target: Path) -> None:
+def nsfw_inspect(nsfw_model: Path, target: Path) -> None:
     if nsfw_model and Path(nsfw_model).exists():
         detector = NudeDetector(model_path=nsfw_model)
     else:
@@ -48,9 +47,7 @@ def nsfw_inspect(nsfw_model: Path, jobs: int, target: Path) -> None:
         else:
             msg = ""
         click.echo(f"Processing {len(found_files)}{msg}...", err=True)
-        classifications = detector.detect_batch(found_files, batch_size=jobs)
-        for fname, classification in zip(found_files, classifications):
-            click.echo(f"{fname}:{grep_beautifier(classification)}")
+        for fname in found_files:
+            analyse_image(detector, fname)
     else:
-        classification = detector.detect(target.as_posix())
-        click.echo(f"{target}:{grep_beautifier(classification)}")
+        analyse_image(detector, target.as_posix())
