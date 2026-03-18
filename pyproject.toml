@@ -9,7 +9,64 @@ dependencies = [
     "imagehash>=4.3.2",
     "nudenet>=3.4.2",
     "pillow>=11.0.0,<12",
+    "torch",
+    "tensorflow-rocm",
+    "sentence-transformers>=5.3.0",
 ]
+
+[project.optional-dependencies]
+cuda = ["torch", "triton"]
+metal = ["torch"]
+rocm = ["torch", "triton", "triton-kernels"]
+
+[tool.uv]
+conflicts = [
+    [
+        { extra = "cuda" },
+        { extra = "rocm" },
+    ],
+    [
+        { extra = "metal" },
+        { extra = "rocm" },
+    ],
+    [
+        { extra = "metal" },
+        { extra = "cuda" },
+    ],
+]
+environments = ["sys_platform == 'linux'"]
+package = true
+build-constraint-dependencies = ["setuptools>=70"]
+
+[tool.uv.sources]
+clickusagemd = { git = "http://github.com/jaypikay/clickusagemd.git", rev = "1.0.1" }
+tensorflow-rocm = { index = "rocm72" }
+torch = [
+    { index = "rocm72", extra = "rocm" },
+    { index = "cuda130", extra = "cuda" },
+    { index = "darwin", extra = "metal" },
+]
+triton = [
+    { index = "rocm72", extra = "rocm" },
+    { index = "cuda130", extra = "cuda", marker = "extra == 'cuda'" },
+]
+triton-kernels = [{ index = "rocm72", extra = "rocm" }]
+
+[[tool.uv.index]]
+name = "rocm72"
+url = "https://repo.radeon.com/rocm/manylinux/rocm-rel-7.2/"
+format = "flat"
+explicit = true
+
+[[tool.uv.index]]
+name = "cuda130"
+url = "https://download.pytorch.org/whl/cu130"
+explicit = true
+
+[[tool.uv.index]]
+name = "darwin"
+url = "https://pypi.org/simple"
+explicit = true
 
 [project.scripts]
 wpsrt = "wpsrt.main:wpsort"
@@ -19,10 +76,6 @@ wpsrt-nsfwinspect = "wpsrt.inspector:nsfw_inspect"
 [build-system]
 requires = ["uv_build>=0.9.26,<0.10.0"]
 build-backend = "uv_build"
-
-[tool.uv]
-package = true
-build-constraint-dependencies = ["setuptools>=70"]
 
 [tool.uv.build-backend]
 source-include = ["models/*.onnx"]
@@ -43,8 +96,9 @@ push = true
 "pyproject.toml" = ['^version = "{version}"', '^current_version = "{version}"']
 "README.md" = ['{version}$']
 
-[tool.uv.sources]
-clickusagemd = { git = "http://github.com/jaypikay/clickusagemd.git", rev = "1.0.1" }
-
 [dependency-groups]
-dev = ["clickusagemd", "pre-commit>=4.2.0"]
+dev = [
+    "clickusagemd",
+    "jupyter>=1.1.1",
+    "pre-commit>=4.2.0",
+]

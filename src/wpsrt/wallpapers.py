@@ -10,13 +10,13 @@ It includes functions to:
 """
 
 import os
+from collections.abc import Generator
 from pathlib import Path
-from typing import Generator
 
 import click
 
 from wpsrt.errors import SkipUnsupportedImage, UnknownSortMethod
-from wpsrt.methods import aspectratio, resolution, nsfw
+from wpsrt.methods import aspectratio, clip, nsfw, resolution
 
 
 def scan_directory(directory: Path) -> Generator[Path]:
@@ -76,6 +76,8 @@ def sort_wallpapers(
                         fname = resolution.process_file(filename)
                     case "ratio":
                         fname = aspectratio.process_file(filename)
+                    case "clip":
+                        fname = clip.process_file(filename)
                     case "nsfw":
                         fname = nsfw.process_file(filename)
                         if "/NSFW/" in fname.as_posix():
