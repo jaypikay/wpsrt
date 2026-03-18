@@ -1,6 +1,6 @@
 [project]
 name = "wpsrt"
-version = "2.3.5"
+version = "2.4.0"
 description = ""
 authors = [{ name = "jpk", email = "jpk@goatpr0n.de" }]
 requires-python = ">=3.12"
