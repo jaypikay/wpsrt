@@ -16,7 +16,7 @@ from pathlib import Path
 import click
 
 from wpsrt.errors import SkipUnsupportedImage, UnknownSortMethod
-from wpsrt.methods import aspectratio, clip, nsfw, resolution
+from wpsrt.methods import aspectratio, resolution
 
 
 def scan_directory(directory: Path) -> Generator[Path]:
@@ -77,8 +77,12 @@ def sort_wallpapers(
                     case "ratio":
                         fname = aspectratio.process_file(filename)
                     case "clip":
+                        from wpsrt.methods import clip
+
                         fname = clip.process_file(filename)
                     case "nsfw":
+                        from wpsrt.methods import nsfw
+
                         fname = nsfw.process_file(filename)
                         if "/NSFW/" in fname.as_posix():
                             nsfw_files += 1

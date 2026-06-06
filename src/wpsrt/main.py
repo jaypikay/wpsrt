@@ -11,15 +11,13 @@ from pathlib import Path
 import click
 
 from .tools.converter import convert_wallpapers
-from .tools.hashing import hash_wallpapers
-from .wallpapers import sort_wallpapers
 
 
 @click.command()
 @click.option(
     "-m",
     "--mode",
-    type=click.Choice(["resolution", "ratio", "hash", "nsfw", "clip"]),
+    type=click.Choice(["resolution", "ratio", "nsfw", "clip"]),
     default="resolution",
     help="Sort by resolution or aspect ratio.",
 )
@@ -69,9 +67,21 @@ def wpsort(
         reinitialize_detector(nsfw_model)
 
     if mode in ["resolution", "ratio", "nsfw", "clip"]:
+        from .wallpapers import sort_wallpapers
+
         sort_wallpapers(mode, source, target, dry_run)
-    elif mode in ["hash"]:
-        hash_wallpapers(target)
+
+
+@click.command()
+@click.argument(
+    "target",
+    type=click.Path(exists=True, file_okay=True, dir_okay=True),
+    default=Path("~/Pictures/Wallpapers/").expanduser(),
+)
+def wphash(target: Path):
+    from .tools.hashing import hash_wallpapers
+
+    hash_wallpapers(Path(target))
 
 
 @click.command()

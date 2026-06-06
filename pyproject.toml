@@ -12,6 +12,7 @@ dependencies = [
     "torch",
     "tensorflow-rocm",
     "sentence-transformers>=5.3.0",
+    "xdg-base-dirs>=6.0.2",
 ]
 
 [project.optional-dependencies]
@@ -70,6 +71,7 @@ explicit = true
 
 [project.scripts]
 wpsrt = "wpsrt.main:wpsort"
+wphash = "wpsrt.main:wphash"
 wpsrt-convert = "wpsrt.main:wpconvert"
 wpsrt-nsfwinspect = "wpsrt.inspector:nsfw_inspect"
 
@@ -97,8 +99,4 @@ push = true
 "README.md" = ['{version}$']
 
 [dependency-groups]
-dev = [
-    "clickusagemd",
-    "jupyter>=1.1.1",
-    "pre-commit>=4.2.0",
-]
+dev = ["clickusagemd", "jupyter>=1.1.1", "pre-commit>=4.2.0"]

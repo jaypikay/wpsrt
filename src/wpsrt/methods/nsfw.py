@@ -29,10 +29,9 @@ NSFW_THRESHOLDS = {
 }
 
 
-def reinitialize_detector(onnx_model_path: Path) -> NudeDetector:
+def reinitialize_detector(onnx_model_path: Path):
     global Detector
     Detector = NudeDetector(model_path=onnx_model_path)
-    return Detector
 
 
 def has_identifier_above_theshold(
