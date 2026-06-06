@@ -94,7 +94,7 @@ def sort_wallpapers(
 
                 target_subdir_fname = target / fname
                 if not dry_run:
-                    move_wallpaper(filename, target_subdir_fname)
+                    _ = move_wallpaper(filename, target_subdir_fname)
                 moved_files += 1
             except SkipUnsupportedImage:
                 skipped_files += 1
