@@ -182,6 +182,8 @@ def hash_wallpapers(target: Path):
             tuple[int, int],
         ]
     ] = []
+
+    new_hash_count = 0
     with click.progressbar(found_files, label="Hashing wallpapers") as progress:
         for filename in progress:
             try:
@@ -193,6 +195,7 @@ def hash_wallpapers(target: Path):
                     average = imagehash.average_hash(image)  # pyright: ignore[reportUnknownMemberType]
 
                     store_hash(filename, (phash, dhash, color, average), image.size)
+                    new_hash_count += 1
                     hashes.append(
                         (filename, (phash, dhash, color, average), image.size)
                     )
@@ -217,17 +220,7 @@ def hash_wallpapers(target: Path):
                 click.secho(f"Error hashing {filename}: {e}", err=True, fg="red")
                 continue
 
-    # Output the collected hash information
-    # This part might be refactored later if actual duplicate removal is implemented
-    click.secho(
-        """pHash            dHash            colorHash   average Hash       Resolution  Filename
-=====            =====            =========   ============       ==========  ========"""
-    )
-    for filename, (phash, dhash, colorhash, average_hash), (xres, yres) in hashes:
-        # Use click.echo for consistent output formatting
-        click.echo(
-            f"{phash} {dhash} {colorhash} {average_hash} {xres:6d}x{yres:<6d} {filename}"
-        )
+    click.echo(f"Added {new_hash_count} images to hash database")
 
 
 def compare_hashes(hash: str, threshold: int = 5):
