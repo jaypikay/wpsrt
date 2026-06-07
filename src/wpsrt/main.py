@@ -10,8 +10,6 @@ from pathlib import Path
 
 import click
 
-from .tools.converter import convert_wallpapers
-
 
 @click.command()
 @click.option(
@@ -73,15 +71,47 @@ def wpsort(
 
 
 @click.command()
+@click.option(
+    "-m",
+    "--mode",
+    type=click.Choice(["clean", "hash", "compare"]),
+    default="hash",
+    help="Operational mode selection",
+)
+@click.option(
+    "-h",
+    "--hash",
+    type=click.Choice(["phash", "dhash", "colorhash", "average_hash"]),
+    default="dhash",
+    help="Hash used for comparison during similarity check",
+)
+@click.option(
+    "-t",
+    "--threshold",
+    type=int,
+    default=5,
+    help="Threshold distance during similarity check",
+)
 @click.argument(
     "target",
     type=click.Path(exists=True, file_okay=True, dir_okay=True),
     default=Path("~/Pictures/Wallpapers/").expanduser(),
 )
-def wphash(target: Path):
-    from .tools.hashing import hash_wallpapers
+def wphash(target: Path, mode: str, hash: str, threshold: int):
+    if mode == "hash":
+        from .tools.hashing import hash_wallpapers
 
-    hash_wallpapers(Path(target))
+        hash_wallpapers(Path(target))
+
+    if mode == "compare":
+        from .tools.hashing import compare_hashes
+
+        compare_hashes(hash, threshold)
+
+    if mode == "clean":
+        from .tools.hashing import cleanup_hashes
+
+        cleanup_hashes()
 
 
 @click.command()
@@ -106,5 +136,7 @@ def wpconvert(extension: str, delete: bool, source: Path) -> None:
 
     if extension in ["gif"]:
         click.secho("Cannot convert gif to png!", fg="red")
+
+    from .tools.converter import convert_wallpapers
 
     convert_wallpapers(extension, delete, source)

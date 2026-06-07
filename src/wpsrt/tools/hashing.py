@@ -1,9 +1,12 @@
+import enum
 import sqlite3
+from itertools import combinations
 from pathlib import Path
 from uuid import uuid4
 
 import click
 import imagehash
+from imagehash import ImageHash, hex_to_flathash, hex_to_hash
 from PIL import Image
 from xdg_base_dirs import xdg_data_home
 
@@ -13,28 +16,39 @@ from wpsrt.wallpapers import scan_directory
 SCHEMA_HASHES = """CREATE TABLE IF NOT EXISTS hashes (
     uuid PRIMARY KEY,
     filename TEXT NOT NULL UNIQUE,
-    p TEXT NOT NULL,
-    d TEXT NOT NULL,
-    color TEXT NOT NULL,
-    average TEXT NOT NULL,
+    phash TEXT NOT NULL,
+    dhash TEXT NOT NULL,
+    colorhash TEXT NOT NULL,
+    average_hash TEXT NOT NULL,
     xres INT NOT NULL,
     yres INT NOT NULL
 );
-CREATE INDEX IF NOT EXISTS phash ON hashes(p);
-CREATE INDEX IF NOT EXISTS dhash ON hashes(d);
-CREATE INDEX IF NOT EXISTS colorhash ON hashes(color);
-CREATE INDEX IF NOT EXISTS average_hash ON hashes(average);
+CREATE INDEX IF NOT EXISTS phash ON hashes(phash);
+CREATE INDEX IF NOT EXISTS dhash ON hashes(dhash);
+CREATE INDEX IF NOT EXISTS colorhash ON hashes(colorhash);
+CREATE INDEX IF NOT EXISTS average_hash ON hashes(average_hash);
 CREATE INDEX IF NOT EXISTS filename ON hashes(filename);
 """
 
 DATA_DIR = xdg_data_home() / "wpsrt"
 DB_FILE = DATA_DIR / "hashdb.sqlite"
 
-db_con: sqlite3.Connection | None = None
+
+class HashColumn(enum.Enum):
+    phash = 1
+    dhash = 2
+    colorhash = 3
+    average_hash = 4
 
 
-def init_hashdb():
-    global db_con
+database_connection: sqlite3.Connection | None = None
+
+
+def init_hashdb() -> sqlite3.Connection:
+    global database_connection
+
+    if database_connection:
+        return database_connection
 
     if not DATA_DIR.exists():
         DATA_DIR.mkdir(parents=True)
@@ -47,24 +61,23 @@ def init_hashdb():
     else:
         db_con = sqlite3.connect(database=DB_FILE)
 
+    return db_con
+
 
 def store_hash(
     filename: Path,
     hashes: tuple[
-        imagehash.ImageHash,
-        imagehash.ImageHash,
-        imagehash.ImageHash,
-        imagehash.ImageHash,
+        ImageHash,
+        ImageHash,
+        ImageHash,
+        ImageHash,
     ],
     resolution: tuple[int, int],
 ):
-    global db_con
-
     phash, dhash, colorhash, average_hash = hashes
     xres, yres = resolution
 
-    if not db_con:
-        init_hashdb()
+    db_con = init_hashdb()
     cur = db_con.cursor()
     data = [
         (
@@ -83,11 +96,7 @@ def store_hash(
 
 
 def is_hashed(filename: Path) -> bool:
-    global db_con
-
-    if not db_con:
-        init_hashdb()
-
+    db_con = init_hashdb()
     cur = db_con.cursor()
     res = cur.execute(
         """SELECT filename FROM hashes WHERE filename=?""", (filename.as_posix(),)
@@ -99,22 +108,40 @@ def is_hashed(filename: Path) -> bool:
         return False
 
 
-def fetch_hashes(filename: Path):
-    global db_con
-
-    if not db_con:
-        init_hashdb()
-
+def fetch_hash(filename: Path):
+    db_con = init_hashdb()
     cur = db_con.cursor()
     res = cur.execute(
-        """SELECT filename, p, d, color, average, xres, yres FROM hashes WHERE filename=?""",
+        """SELECT filename, phash, dhash, colorhash, average_hash, xres, yres FROM hashes WHERE filename=?""",
         (filename.as_posix(),),
     )
     try:
-        filename, phash, dhash, color, average, xres, yres = res.fetchone()
+        filename, phash, dhash, color, average, xres, yres = res.fetchone()  # pyright: ignore[reportAny]
         return (filename, phash, dhash, color, average, (xres, yres))
-    except:
+    except TypeError:
         return None
+
+
+def cleanup_hashes():
+    db_con = init_hashdb()
+    cur = db_con.cursor()
+    res = cur.execute("""SELECT uuid, filename FROM hashes""")
+    for row in res.fetchall():
+        uuid = row[0]
+        filename = Path(row[1])
+        if not filename.exists():
+            click.secho(f"File not found: {filename}", fg="red")
+            res = cur.execute("""DELETE FROM hashes WHERE uuid=?""", (uuid,))
+    db_con.commit()
+
+
+def fetch_hashes():
+    db_con = init_hashdb()
+    cur = db_con.cursor()
+    res = cur.execute(
+        """SELECT filename, phash, dhash, colorhash, average_hash, xres, yres FROM hashes"""
+    )
+    return res.fetchall()
 
 
 def hash_wallpapers(target: Path):
@@ -136,7 +163,7 @@ def hash_wallpapers(target: Path):
             - image (ImageFile.ImageFile): The PIL Image object.
     """
 
-    init_hashdb()
+    _ = init_hashdb()
 
     click.echo(f"Hashing wallpaper {target}...")
     if target.is_file():
@@ -147,10 +174,10 @@ def hash_wallpapers(target: Path):
         tuple[
             Path,
             tuple[
-                imagehash.ImageHash,
-                imagehash.ImageHash,
-                imagehash.ImageHash,
-                imagehash.ImageHash,
+                ImageHash,
+                ImageHash,
+                ImageHash,
+                ImageHash,
             ],
             tuple[int, int],
         ]
@@ -170,11 +197,20 @@ def hash_wallpapers(target: Path):
                         (filename, (phash, dhash, color, average), image.size)
                     )
                 else:
-                    filename, phash, dhash, color, average, image_size = fetch_hashes(
+                    filename, phash, dhash, color, average, image_size = fetch_hash(  # pyright: ignore[reportGeneralTypeIssues, reportUnknownVariableType]
                         filename
                     )
                     hashes.append(
-                        (filename, (phash, dhash, color, average), image_size)
+                        (  # pyright: ignore[reportUnknownArgumentType]
+                            filename,
+                            (
+                                hex_to_hash(phash),
+                                hex_to_hash(dhash),
+                                hex_to_flathash(color, 7),
+                                hex_to_hash(average),
+                            ),
+                            image_size,
+                        )
                     )
 
             except SkipUnsupportedImage as e:
@@ -193,4 +229,34 @@ def hash_wallpapers(target: Path):
             f"{phash} {dhash} {colorhash} {average_hash} {xres:6d}x{yres:<6d} {filename}"
         )
 
-    # TODO store in database
+
+def compare_hashes(hash: str, threshold: int = 5):
+    hashes = fetch_hashes()
+
+    hashcol = HashColumn.__getitem__(hash).value
+
+    hashlist = []
+    with click.progressbar(hashes, label="Preparing hash list") as progress:
+        for row in progress:
+            if hash == "colorhash":
+                hashval = hex_to_flathash(row[hashcol], 7)
+            else:
+                hashval = hex_to_hash(row[hashcol])
+
+            hashlist.append((row[0], hashval, (row[5], row[6])))
+
+    results = []
+    with click.progressbar(
+        combinations(hashlist, 2), label="Checking hash similarities", show_eta=True
+    ) as progress:
+        for img_a, img_b in progress:
+            distance = img_a[1] - img_b[1]
+            if distance <= threshold:
+                results.append(
+                    ((img_a[0], img_a[-2:]), (img_b[0], img_b[-2:]), distance)
+                )
+
+    click.echo(f"Found {len(results)} possible similar images.")
+    for result in sorted(results, key=lambda e: e[2]):
+        file_a, file_b, distance = result
+        click.echo(f"{distance};{file_a[0]};{file_b[0]}")
