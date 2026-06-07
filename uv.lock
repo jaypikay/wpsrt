@@ -3346,7 +3346,7 @@ wheels = [
 
 [[package]]
 name = "wpsrt"
-version = "2.5.0"
+version = "2.5.1"
 source = { editable = "." }
 dependencies = [
     { name = "click", marker = "sys_platform == 'linux' or (extra == 'extra-5-wpsrt-cuda' and extra == 'extra-5-wpsrt-metal') or (extra == 'extra-5-wpsrt-cuda' and extra == 'extra-5-wpsrt-rocm') or (extra == 'extra-5-wpsrt-metal' and extra == 'extra-5-wpsrt-rocm')" },
