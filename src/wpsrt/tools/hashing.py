@@ -252,4 +252,4 @@ def compare_hashes(hash: str, threshold: int = 5):
     click.echo(f"Found {len(results)} possible similar images.")
     for result in sorted(results, key=lambda e: e[2]):
         file_a, file_b, distance = result
-        click.echo(f"{distance};{file_a[0]};{file_b[0]}")
+        click.echo(f"hash={hash};distance={distance};{file_a[0]};{file_b[0]}")
