@@ -2,6 +2,7 @@ import enum
 import sqlite3
 from itertools import combinations
 from pathlib import Path
+from sys import stderr
 from uuid import uuid4
 
 import click
@@ -223,13 +224,15 @@ def hash_wallpapers(target: Path):
     click.echo(f"Added {new_hash_count} images to hash database")
 
 
-def compare_hashes(hash: str, threshold: int = 5):
+def compare_hashes(hash: str, threshold: int = 5, output: Path | None = None):
     hashes = fetch_hashes()
 
     hashcol = HashColumn.__getitem__(hash).value
 
     hashlist = []
-    with click.progressbar(hashes, label="Preparing hash list") as progress:
+    with click.progressbar(
+        hashes, label="Preparing hash list", file=stderr
+    ) as progress:
         for row in progress:
             if hash == "colorhash":
                 hashval = hex_to_flathash(row[hashcol], 7)
@@ -240,7 +243,10 @@ def compare_hashes(hash: str, threshold: int = 5):
 
     results = []
     with click.progressbar(
-        combinations(hashlist, 2), label="Checking hash similarities", show_eta=True
+        combinations(hashlist, 2),
+        label="Checking hash similarities",
+        file=stderr,
+        show_eta=True,
     ) as progress:
         for img_a, img_b in progress:
             distance = img_a[1] - img_b[1]
@@ -248,8 +254,14 @@ def compare_hashes(hash: str, threshold: int = 5):
                 results.append(
                     ((img_a[0], img_a[-2:]), (img_b[0], img_b[-2:]), distance)
                 )
+                click.echo(img_a[0])
+                click.echo(img_b[0])
 
-    click.echo(f"Found {len(results)} possible similar images.")
-    for result in sorted(results, key=lambda e: e[2]):
-        file_a, file_b, distance = result
-        click.echo(f"hash={hash};distance={distance};{file_a[0]};{file_b[0]}")
+    if output:
+        with open(output, "tw", encoding="utf-8") as fd:
+            click.echo(f"Found {len(results)} possible similar images.", file=stderr)
+            for result in sorted(results, key=lambda e: e[2]):
+                file_a, file_b, distance = result
+            click.echo(
+                f"hash={hash};distance={distance};{file_a[0]};{file_b[0]}", file=fd
+            )

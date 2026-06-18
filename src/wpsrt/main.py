@@ -43,16 +43,19 @@ def wpsort(
     Sorts wallpapers from a source directory to a target directory.
 
     The sorting can be done based on different modes:
+
     - 'resolution': Sorts wallpapers into subdirectories named after their resolution (e.g., '1920x1080').
+
     - 'ratio': Sorts wallpapers into subdirectories named after their aspect ratio (e.g., '16x9').
+
     - 'hash': Calculates and displays perceptual hashes of wallpapers in the target directory.
-              (Note: This mode currently only identifies potential duplicates by hash, it does not remove them).
+    (Note: This mode currently only identifies potential duplicates by hash, it does not remove them).
 
     Args:
-        mode: The sorting mode to use ('resolution', 'ratio', or 'hash').
-        source: The path to the directory containing the wallpapers to sort.
-        target: The path to the directory where the sorted wallpapers will be placed.
-                If it doesn't exist, it will be created.
+
+    mode: The sorting mode to use ('resolution', 'ratio', or 'hash').
+    source: The path to the directory containing the wallpapers to sort.
+    target: The path to the directory where the sorted wallpapers will be placed. If it doesn't exist, it will be created.
     """
     source = Path(source)
     target = Path(target)
@@ -92,12 +95,27 @@ def wpsort(
     default=5,
     help="Threshold distance during similarity check",
 )
+@click.option(
+    "-o",
+    "--output",
+    default=None,
+    type=click.Path(dir_okay=False, writable=True, resolve_path=True),
+    help="Output file for similarity results",
+)
 @click.argument(
     "target",
     type=click.Path(exists=True, file_okay=True, dir_okay=True),
     default=Path("~/Pictures/Wallpapers/").expanduser(),
 )
-def wphash(target: Path, mode: str, hash: str, threshold: int):
+def wphash(target: Path, mode: str, hash: str, threshold: int, output: Path):
+    """Hash, compare and clean image hashes.
+
+    Example usage:
+
+        wphash -m compare | swiv -t -i
+
+        wphash -m compare -o similarities.dhash
+    """
     if mode == "hash":
         from .tools.hashing import hash_wallpapers
 
@@ -106,7 +124,7 @@ def wphash(target: Path, mode: str, hash: str, threshold: int):
     if mode == "compare":
         from .tools.hashing import compare_hashes
 
-        compare_hashes(hash, threshold)
+        compare_hashes(hash, threshold, output)
 
     if mode == "clean":
         from .tools.hashing import cleanup_hashes
