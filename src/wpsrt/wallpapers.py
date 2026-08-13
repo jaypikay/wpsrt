@@ -9,7 +9,8 @@ It includes functions to:
 - Identify duplicate images by calculating and comparing perceptual hashes.
 """
 
-import os
+from __future__ import annotations
+
 from collections.abc import Generator
 from pathlib import Path
 
@@ -19,16 +20,15 @@ from wpsrt.errors import SkipUnsupportedImage, UnknownSortMethod
 from wpsrt.methods import aspectratio, resolution
 
 
-def scan_directory(directory: Path) -> Generator[Path]:
-    for root, _, filenames in os.walk(directory):
-        for filename in [Path(os.path.join(root, fname)) for fname in filenames]:
-            if filename.is_file():
-                yield filename
+def scan_directory(directory: Path) -> Generator[Path, None, None]:
+    """Recursively scans a directory and yields all file paths."""
+    for path in directory.rglob("*"):
+        if path.is_file():
+            yield path
 
 
 def move_wallpaper(wallpaper: Path, target: Path) -> Path:
-    """
-    Moves a wallpaper file to a specified target path.
+    """Moves a wallpaper file to a specified target path.
 
     If the parent directory of the target path does not exist, it will be
     created recursively.
@@ -40,31 +40,28 @@ def move_wallpaper(wallpaper: Path, target: Path) -> Path:
     Returns:
         The Path object of the moved wallpaper file at its new location.
     """
-    if not target.parent.exists():
-        # Create parent directories if they don't exist
-        target.parent.mkdir(parents=True)
+    target.parent.mkdir(parents=True, exist_ok=True)
     return wallpaper.rename(target)
 
 
 def sort_wallpapers(
     mode: str, source: Path, target: Path, dry_run: bool = False
 ) -> None:
-    """
-    Sorts wallpapers from a source directory into subdirectories within a target directory.
+    """Sorts wallpapers from a source directory into subdirectories within a target directory.
 
-    Wallpapers can be sorted based on their resolution or aspect ratio.
+    Wallpapers can be sorted based on their resolution, aspect ratio, CLIP, or NSFW rating.
     It skips files that are already in their correct target subdirectories.
 
     Args:
-        mode: The sorting criterion, either "resolution" or "ratio".
+        mode: The sorting criterion ("resolution", "ratio", "clip", or "nsfw").
         source: The Path object of the directory containing wallpapers to sort.
         target: The Path object of the directory where sorted wallpapers will be placed.
-                Subdirectories will be created here based on the sorting mode.
+        dry_run: If True, preview sorting without moving files.
     """
+    SkipUnsupportedImage.reset_count()
     click.echo(f"Scanning wallpaper directory {source}...")
     found_files = list(scan_directory(source))  # Collect all wallpapers first
     moved_files = 0
-    skipped_files = 0
     sfw_files = 0
     nsfw_files = 0
 
@@ -84,7 +81,7 @@ def sort_wallpapers(
                         from wpsrt.methods import nsfw
 
                         fname = nsfw.process_file(filename)
-                        if "/NSFW/" in fname.as_posix():
+                        if "NSFW" in fname.parts:
                             nsfw_files += 1
                         else:
                             sfw_files += 1

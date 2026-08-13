@@ -1,6 +1,6 @@
 [project]
 name = "wpsrt"
-version = "2.5.3"
+version = "2.5.4"
 description = ""
 authors = [{ name = "jpk", email = "jpk@goatpr0n.de" }]
 requires-python = ">=3.12"
@@ -97,6 +97,9 @@ push = true
 [tool.bumpver.file_patterns]
 "pyproject.toml" = ['^version = "{version}"', '^current_version = "{version}"']
 "README.md" = ['{version}$']
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
 
 [dependency-groups]
 dev = ["clickusagemd", "jupyter>=1.1.1", "pre-commit>=4.2.0"]

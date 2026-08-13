@@ -1,21 +1,24 @@
-from typing_extensions import final
+from __future__ import annotations
 
-
-NumberSkippedImages = 0
+from typing import final
 
 
 @final
 class SkipUnsupportedImage(Exception):
-    def __init__(self, message: str = "Unsupported image format"):
-        global NumberSkippedImages
+    _count: int = 0
+
+    def __init__(self, message: str = "Unsupported image format") -> None:
         self.message = message
-        NumberSkippedImages += 1
+        SkipUnsupportedImage._count += 1
         super().__init__(self.message)
 
-    @staticmethod
-    def count() -> int:
-        global NumberSkippedImages
-        return NumberSkippedImages
+    @classmethod
+    def count(cls) -> int:
+        return cls._count
+
+    @classmethod
+    def reset_count(cls) -> None:
+        cls._count = 0
 
 
 class UnknownSortMethod(Exception):
