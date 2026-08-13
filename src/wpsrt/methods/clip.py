@@ -1,18 +1,16 @@
+from __future__ import annotations
+
 from itertools import chain
 from pathlib import Path
+from typing import Any
 
 import click
 import torch
 from PIL import Image, UnidentifiedImageError
-from sentence_transformers import SentenceTransformer, util
-
-from wpsrt.errors import SkipUnsupportedImage
 
 FOLDER_PREFIX = "rating"
 
-en_model = SentenceTransformer("clip-ViT-B-32")
-
-CLASS_LABELS = {
+CLASS_LABELS: dict[str, list[str]] = {
     "SFW": [
         "abstract",
         "anime",
@@ -62,7 +60,7 @@ CLASS_LABELS = {
         "sexy",
         "small breasts",
         "spread legs",
-        "tighs",
+        "thighs",
         "underboob",
         "underwear",
         "vagina",
@@ -71,18 +69,33 @@ CLASS_LABELS = {
 LABELS = list(chain.from_iterable(CLASS_LABELS.values()))
 LOOKUP_TABLE = {v: k for k, lst in CLASS_LABELS.items() for v in lst}
 
-en_emb = en_model.encode(LABELS, convert_to_tensor=True)
+_model: Any = None
+_embeddings: Any = None
+
+
+def _get_model_and_embeddings() -> tuple[Any, Any]:
+    global _model, _embeddings
+    if _model is None or _embeddings is None:
+        from sentence_transformers import SentenceTransformer
+
+        _model = SentenceTransformer("clip-ViT-B-32")
+        _embeddings = _model.encode(LABELS, convert_to_tensor=True)
+    return _model, _embeddings
 
 
 def process_file(filename: Path) -> Path:
-    global en_model
-    try:
-        image = Image.open(filename)
+    """Processes an image file with CLIP model and returns classification path."""
+    from sentence_transformers import util
 
-        img = en_model.encode([image], convert_to_tensor=True)
-        cos_scores = util.cos_sim(img, en_emb)
-        label = torch.argmax(cos_scores, dim=1)
-        label_name = LABELS[label]
+    from wpsrt.errors import SkipUnsupportedImage
+
+    model, embeddings = _get_model_and_embeddings()
+    try:
+        with Image.open(filename) as image:
+            img = model.encode([image], convert_to_tensor=True)
+        cos_scores = util.cos_sim(img, embeddings)
+        label_idx = int(torch.argmax(cos_scores, dim=1).item())
+        label_name = LABELS[label_idx]
         classification = LOOKUP_TABLE[label_name]
 
         return Path(f"{FOLDER_PREFIX}/{classification}/{filename.name}")
@@ -90,4 +103,4 @@ def process_file(filename: Path) -> Path:
         click.secho(
             f"WARN: Skipping unsupported file: {filename}", fg="yellow", err=True
         )
-        raise SkipUnsupportedImage
+        raise SkipUnsupportedImage from None

@@ -98,5 +98,8 @@ push = true
 "pyproject.toml" = ['^version = "{version}"', '^current_version = "{version}"']
 "README.md" = ['{version}$']
 
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+
 [dependency-groups]
 dev = ["clickusagemd", "jupyter>=1.1.1", "pre-commit>=4.2.0"]

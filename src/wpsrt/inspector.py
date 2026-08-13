@@ -1,24 +1,26 @@
+from __future__ import annotations
+
 from pathlib import Path
+from typing import Any
 
 import click
-from nudenet import NudeDetector
 
 from wpsrt.wallpapers import scan_directory
 
 
-def grep_beautifier(classification: dict) -> str:
-    output = []
-    for data in classification:
-        output.append(f"{data['class']}={data['score']}")
-    if output:
-        return ":".join(output)
-    else:
-        return "SFW"
+def grep_beautifier(classification: list[dict[str, Any]]) -> str:
+    """Formats classification detection results into key=value output string."""
+    output = [f"{data['class']}={data['score']}" for data in classification]
+    return ":".join(output) if output else "SFW"
 
 
-def analyse_image(detector: NudeDetector, image: str):
+def analyse_image(detector: Any, image: str) -> None:
+    """Detects content of an image file and prints formatted output."""
     classification = detector.detect(image)
     click.echo(f"{image}:nudenet:{grep_beautifier(classification)}")
+
+
+analyze_image = analyse_image
 
 
 @click.command()
@@ -33,19 +35,19 @@ def analyse_image(detector: NudeDetector, image: str):
     type=click.Path(exists=True, file_okay=True, dir_okay=True),
     default=Path("~/Pictures/wallpapers").expanduser(),
 )
-def nsfw_inspect(nsfw_model: Path, target: Path) -> None:
+def nsfw_inspect(nsfw_model: Path | None, target: Path) -> None:
+    """Inspects wallpapers using NudeDetector and prints classifications."""
+    from nudenet import NudeDetector
+
     if nsfw_model and Path(nsfw_model).exists():
-        detector = NudeDetector(model_path=nsfw_model)
+        detector = NudeDetector(model_path=str(nsfw_model))
     else:
         detector = NudeDetector()
 
     target = Path(target)
     if target.is_dir():
         found_files = [f.as_posix() for f in scan_directory(target)]
-        if len(found_files) > 100:
-            msg = " this may take a while, please wait"
-        else:
-            msg = ""
+        msg = " this may take a while, please wait" if len(found_files) > 100 else ""
         click.echo(f"Processing {len(found_files)}{msg}...", err=True)
         for fname in found_files:
             analyse_image(detector, fname)

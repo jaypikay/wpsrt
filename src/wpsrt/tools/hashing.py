@@ -1,8 +1,11 @@
+from __future__ import annotations
+
 import enum
 import sqlite3
 from itertools import combinations
 from pathlib import Path
 from sys import stderr
+from typing import Any
 from uuid import uuid4
 
 import click
@@ -11,7 +14,6 @@ from imagehash import ImageHash, hex_to_flathash, hex_to_hash
 from PIL import Image, UnidentifiedImageError
 from xdg_base_dirs import xdg_data_home
 
-from wpsrt.errors import SkipUnsupportedImage
 from wpsrt.wallpapers import scan_directory
 
 SCHEMA_HASHES = """CREATE TABLE IF NOT EXISTS hashes (
@@ -46,13 +48,14 @@ database_connection: sqlite3.Connection | None = None
 
 
 def init_hashdb() -> sqlite3.Connection:
+    """Initializes and returns the SQLite database connection."""
     global database_connection
 
     if database_connection:
         return database_connection
 
     if not DATA_DIR.exists():
-        DATA_DIR.mkdir(parents=True)
+        DATA_DIR.mkdir(parents=True, exist_ok=True)
 
     if not DB_FILE.exists():
         click.echo("Initializing image hash database...")
@@ -60,6 +63,20 @@ def init_hashdb() -> sqlite3.Connection:
     database_connection = sqlite3.connect(database=DB_FILE)
     _ = database_connection.executescript(SCHEMA_HASHES)
     return database_connection
+
+
+def store_hashes_batch(
+    records: list[tuple[str, str, str, str, str, str, int, int]],
+) -> None:
+    """Stores multiple hash records into the database in a single transaction."""
+    if not records:
+        return
+    db_con = init_hashdb()
+    cur = db_con.cursor()
+    _ = cur.executemany(
+        """INSERT INTO hashes VALUES (?, ?, ?, ?, ?, ?, ?, ?)""", records
+    )
+    db_con.commit()
 
 
 def store_hash(
@@ -71,29 +88,36 @@ def store_hash(
         ImageHash,
     ],
     resolution: tuple[int, int],
-):
+) -> None:
+    """Stores a single image hash entry into the database."""
     phash, dhash, colorhash, average_hash = hashes
     xres, yres = resolution
+    store_hashes_batch(
+        [
+            (
+                str(uuid4()),
+                filename.as_posix(),
+                str(phash),
+                str(dhash),
+                str(colorhash),
+                str(average_hash),
+                xres,
+                yres,
+            )
+        ]
+    )
 
+
+def get_hashed_filenames() -> set[str]:
+    """Returns a set of all filenames already present in the database."""
     db_con = init_hashdb()
     cur = db_con.cursor()
-    data = [
-        (
-            str(uuid4()),
-            filename.as_posix(),
-            str(phash),
-            str(dhash),
-            str(colorhash),
-            str(average_hash),
-            xres,
-            yres,
-        ),
-    ]
-    _ = cur.executemany("""INSERT INTO hashes VALUES (?, ?, ?, ?, ?, ?, ?, ?)""", data)
-    db_con.commit()
+    res = cur.execute("""SELECT filename FROM hashes""")
+    return {row[0] for row in res.fetchall()}
 
 
 def is_hashed(filename: Path) -> bool:
+    """Checks whether a single file is present in the hash database."""
     db_con = init_hashdb()
     cur = db_con.cursor()
     res = cur.execute(
@@ -102,7 +126,10 @@ def is_hashed(filename: Path) -> bool:
     return res.fetchone() is not None
 
 
-def fetch_hash(filename: Path):
+def fetch_hash(
+    filename: Path,
+) -> tuple[str, str, str, str, str, tuple[int, int]] | None:
+    """Fetches hash details for a specific filename."""
     db_con = init_hashdb()
     cur = db_con.cursor()
     res = cur.execute(
@@ -112,24 +139,28 @@ def fetch_hash(filename: Path):
     row = res.fetchone()
     if row is None:
         return None
-    filename, phash, dhash, color, average, xres, yres = row  # pyright: ignore[reportAny]
-    return (filename, phash, dhash, color, average, (xres, yres))
+    fname, phash, dhash, color, average, xres, yres = row
+    return (fname, phash, dhash, color, average, (xres, yres))
 
 
-def cleanup_hashes():
+def cleanup_hashes() -> None:
+    """Removes hash database entries for files that no longer exist."""
     db_con = init_hashdb()
     cur = db_con.cursor()
     res = cur.execute("""SELECT uuid, filename FROM hashes""")
+    missing_uuids = []
     for row in res.fetchall():
-        uuid = row[0]
-        filename = Path(row[1])
-        if not filename.exists():
-            click.secho(f"File not found: {filename}", fg="red")
-            res = cur.execute("""DELETE FROM hashes WHERE uuid=?""", (uuid,))
-    db_con.commit()
+        uuid, fname = row[0], Path(row[1])
+        if not fname.exists():
+            click.secho(f"File not found: {fname}", fg="red")
+            missing_uuids.append((uuid,))
+    if missing_uuids:
+        cur.executemany("""DELETE FROM hashes WHERE uuid=?""", missing_uuids)
+        db_con.commit()
 
 
-def fetch_hashes():
+def fetch_hashes() -> list[tuple[Any, ...]]:
+    """Retrieves all hash records from the database."""
     db_con = init_hashdb()
     cur = db_con.cursor()
     res = cur.execute(
@@ -138,71 +169,73 @@ def fetch_hashes():
     return res.fetchall()
 
 
-def hash_wallpapers(target: Path):
-    """
-    Scans a directory for images, calculates their perceptual hashes (phash),
-    and prints this information.
-
-    This function is useful for identifying potential duplicate images by comparing
-    their hash values. It prints the phash, resolution (formatted as 'WIDTHxHEIGHT'),
-    and filename for each image. Example: `d8e8c0c0c0c0e0e0 1920x1080 /path/to/image.jpg`
-
-    Args:
-        target: The Path object of the directory to scan for wallpapers.
-
-    Returns:
-        A list of tuples, where each tuple contains:
-            - filename (Path): The path to the image file.
-            - phash (imagehash.ImageHash): The perceptual hash of the image.
-            - image (ImageFile.ImageFile): The PIL Image object.
-    """
-
+def hash_wallpapers(target: Path) -> None:
+    """Scans a directory for images, calculates perceptual hashes, and stores them in DB."""
     _ = init_hashdb()
 
     click.echo(f"Hashing wallpaper {target}...")
     if target.is_file():
         found_files = [target]
     else:
-        found_files = list(scan_directory(target))  # Collect all wallpapers first
+        found_files = list(scan_directory(target))
+
+    existing_hashes = get_hashed_filenames()
+    pending_records: list[tuple[str, str, str, str, str, str, int, int]] = []
     new_hash_count = 0
+
     with click.progressbar(found_files, label="Hashing wallpapers") as progress:
         for filename in progress:
-            try:
-                if not is_hashed(filename):
+            posix_path = filename.as_posix()
+            if posix_path not in existing_hashes:
+                try:
                     with Image.open(filename) as image:
                         phash = imagehash.phash(image)
                         dhash = imagehash.dhash(image)
                         color = imagehash.colorhash(image)
-                        average = imagehash.average_hash(image)  # pyright: ignore[reportUnknownMemberType]
+                        average = imagehash.average_hash(image)
+                        xres, yres = image.size
 
-                        store_hash(filename, (phash, dhash, color, average), image.size)
-                        new_hash_count += 1
-                else:
-                    filename, phash, dhash, color, average, _image_size = fetch_hash(  # pyright: ignore[reportGeneralTypeIssues, reportUnknownVariableType]
-                        filename
+                    pending_records.append(
+                        (
+                            str(uuid4()),
+                            posix_path,
+                            str(phash),
+                            str(dhash),
+                            str(color),
+                            str(average),
+                            xres,
+                            yres,
+                        )
                     )
+                    existing_hashes.add(posix_path)
+                    new_hash_count += 1
 
-            except UnidentifiedImageError as e:
-                try:
-                    raise SkipUnsupportedImage
-                except SkipUnsupportedImage:
+                    if len(pending_records) >= 100:
+                        store_hashes_batch(pending_records)
+                        pending_records.clear()
+                except UnidentifiedImageError as e:
                     click.secho(f"Error hashing {filename}: {e}", err=True, fg="red")
-                continue
+                    continue
+
+    if pending_records:
+        store_hashes_batch(pending_records)
 
     click.echo(f"Added {new_hash_count} images to hash database")
 
 
-def compare_hashes(hash: str, threshold: int = 5, output: Path | None = None):
+def compare_hashes(
+    hash_method: str, threshold: int = 5, output: Path | None = None
+) -> None:
+    """Compares stored hashes and outputs potential duplicates based on threshold."""
     hashes = fetch_hashes()
-
-    hashcol = HashColumn.__getitem__(hash).value
+    hashcol = HashColumn[hash_method].value
 
     hashlist = []
     with click.progressbar(
         hashes, label="Preparing hash list", file=stderr
     ) as progress:
         for row in progress:
-            if hash == "colorhash":
+            if hash_method == "colorhash":
                 hashval = hex_to_flathash(row[hashcol], 7)
             else:
                 hashval = hex_to_hash(row[hashcol])
@@ -226,9 +259,10 @@ def compare_hashes(hash: str, threshold: int = 5, output: Path | None = None):
                 click.echo(img_b[0])
 
     if output:
-        with open(output, "tw", encoding="utf-8") as fd:
+        with open(output, "w", encoding="utf-8") as fd:
             click.echo(f"Found {len(results)} possible similar images.", file=stderr)
             for a_file, b_file, distance in sorted(results, key=lambda e: e[2]):
                 click.echo(
-                    f"hash={hash};distance={distance};{a_file[0]};{b_file[0]}", file=fd
+                    f"hash={hash_method};distance={distance};{a_file[0]};{b_file[0]}",
+                    file=fd,
                 )

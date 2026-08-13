@@ -6,6 +6,8 @@ images into subdirectories based on their resolution, aspect ratio, or by
 removing duplicates based on their hash.
 """
 
+from __future__ import annotations
+
 from pathlib import Path
 
 import click
@@ -17,15 +19,16 @@ import click
     "--mode",
     type=click.Choice(["resolution", "ratio", "nsfw", "clip"]),
     default="resolution",
-    help="Sort by resolution or aspect ratio.",
+    help="Sort by resolution, aspect ratio, NSFW rating, or CLIP category.",
 )
 @click.option(
     "-n",
     "--nsfw-model",
     type=click.Path(exists=True, file_okay=True, dir_okay=False),
     default=None,
+    help="Custom ONNX model path for NSFW detection.",
 )
-@click.option("-d", "--dry-run", is_flag=True, help="Do not perform any file actions")
+@click.option("-d", "--dry-run", is_flag=True, help="Do not perform any file actions.")
 @click.argument(
     "source",
     type=click.Path(exists=True, file_okay=False, dir_okay=True),
@@ -37,30 +40,24 @@ import click
     default=Path("~/Pictures/wallpapers").expanduser(),
 )
 def wpsort(
-    mode: str, nsfw_model: Path, dry_run: bool, source: Path, target: Path
+    mode: str, nsfw_model: Path | None, dry_run: bool, source: Path, target: Path
 ) -> None:
-    """
-    Sorts wallpapers from a source directory to a target directory.
+    """Sorts wallpapers from a source directory to a target directory.
 
     The sorting can be done based on different modes:
 
     - 'resolution': Sorts wallpapers into subdirectories named after their resolution (e.g., '1920x1080').
 
-    - 'ratio': Sorts wallpapers into subdirectories named after their aspect ratio (e.g., '16x9').
+    - 'ratio': Sorts wallpapers into subdirectories named after their aspect ratio (e.g., '16:9').
 
-    - 'hash': Calculates and displays perceptual hashes of wallpapers in the target directory.
-    (Note: This mode currently only identifies potential duplicates by hash, it does not remove them).
+    - 'nsfw': Sorts wallpapers by SFW / NSFW content.
 
-    Args:
-
-    mode: The sorting mode to use ('resolution', 'ratio', or 'hash').
-    source: The path to the directory containing the wallpapers to sort.
-    target: The path to the directory where the sorted wallpapers will be placed. If it doesn't exist, it will be created.
+    - 'clip': Sorts wallpapers into category subdirectories using CLIP.
     """
     source = Path(source)
     target = Path(target)
     if not target.exists() and not dry_run:
-        target.mkdir(parents=True)
+        target.mkdir(parents=True, exist_ok=True)
 
     if nsfw_model:
         from wpsrt.methods.nsfw import reinitialize_detector
@@ -84,6 +81,7 @@ def wpsort(
 @click.option(
     "-h",
     "--hash",
+    "hash_method",
     type=click.Choice(["phash", "dhash", "colorhash", "average_hash"]),
     default="dhash",
     help="Hash used for comparison during similarity check",
@@ -107,7 +105,9 @@ def wpsort(
     type=click.Path(exists=True, file_okay=True, dir_okay=True),
     default=Path("~/Pictures/Wallpapers/").expanduser(),
 )
-def wphash(target: Path, mode: str, hash: str, threshold: int, output: Path):
+def wphash(
+    target: Path, mode: str, hash_method: str, threshold: int, output: Path | None
+) -> None:
     """Hash, compare and clean image hashes.
 
     Example usage:
@@ -116,15 +116,17 @@ def wphash(target: Path, mode: str, hash: str, threshold: int, output: Path):
 
         wphash -m compare -o similarities.dhash
     """
+    target = Path(target)
     if mode == "hash":
         from .tools.hashing import hash_wallpapers
 
-        hash_wallpapers(Path(target))
+        hash_wallpapers(target)
 
     if mode == "compare":
         from .tools.hashing import compare_hashes
 
-        compare_hashes(hash, threshold, output)
+        out_path = Path(output) if output else None
+        compare_hashes(hash_method, threshold, out_path)
 
     if mode == "clean":
         from .tools.hashing import cleanup_hashes
@@ -139,7 +141,7 @@ def wphash(target: Path, mode: str, hash: str, threshold: int, output: Path):
 @click.option(
     "-d",
     "--delete",
-    type=bool,
+    is_flag=True,
     default=False,
     help="Remove original file after conversion",
 )
@@ -149,11 +151,12 @@ def wphash(target: Path, mode: str, hash: str, threshold: int, output: Path):
     default=Path("~/Pictures/wallpapers").expanduser(),
 )
 def wpconvert(extension: str, delete: bool, source: Path) -> None:
-    """Convert images by extension `extension` to PNG."""
+    """Convert images with specific extension to PNG."""
     source = Path(source)
 
-    if extension in ["gif"]:
+    if extension.lower().strip(".") == "gif":
         click.secho("Cannot convert gif to png!", fg="red")
+        return
 
     from .tools.converter import convert_wallpapers
 
