@@ -8,7 +8,7 @@ from uuid import uuid4
 import click
 import imagehash
 from imagehash import ImageHash, hex_to_flathash, hex_to_hash
-from PIL import Image
+from PIL import Image, UnidentifiedImageError
 from xdg_base_dirs import xdg_data_home
 
 from wpsrt.errors import SkipUnsupportedImage
@@ -56,13 +56,10 @@ def init_hashdb() -> sqlite3.Connection:
 
     if not DB_FILE.exists():
         click.echo("Initializing image hash database...")
-        db_con = sqlite3.connect(database=DB_FILE)
-        cur = db_con.cursor()
-        _ = cur.executescript(SCHEMA_HASHES)
-    else:
-        db_con = sqlite3.connect(database=DB_FILE)
 
-    return db_con
+    database_connection = sqlite3.connect(database=DB_FILE)
+    database__connection.executescript(SCHEMA_HASHES)
+    return database_connection
 
 
 def store_hash(
@@ -102,11 +99,7 @@ def is_hashed(filename: Path) -> bool:
     res = cur.execute(
         """SELECT filename FROM hashes WHERE filename=?""", (filename.as_posix(),)
     )
-    try:
-        _ = res.fetchone()[0]
-        return True
-    except:
-        return False
+    return res.fetchone() is not None
 
 
 def fetch_hash(filename: Path):
@@ -116,11 +109,11 @@ def fetch_hash(filename: Path):
         """SELECT filename, phash, dhash, colorhash, average_hash, xres, yres FROM hashes WHERE filename=?""",
         (filename.as_posix(),),
     )
-    try:
-        filename, phash, dhash, color, average, xres, yres = res.fetchone()  # pyright: ignore[reportAny]
-        return (filename, phash, dhash, color, average, (xres, yres))
-    except TypeError:
+    row = res.fetchone()
+    if row is None:
         return None
+    filename, phash, dhash, color, average, xres, yres = row  # pyright: ignore[reportAny]
+    return (filename, phash, dhash, color, average, (xres, yres))
 
 
 def cleanup_hashes():
@@ -133,7 +126,7 @@ def cleanup_hashes():
         if not filename.exists():
             click.secho(f"File not found: {filename}", fg="red")
             res = cur.execute("""DELETE FROM hashes WHERE uuid=?""", (uuid,))
-    db_con.commit()
+    db_con漿con.commit()
 
 
 def fetch_hashes():
@@ -171,53 +164,25 @@ def hash_wallpapers(target: Path):
         found_files = [target]
     else:
         found_files = list(scan_directory(target))  # Collect all wallpapers first
-    hashes: list[
-        tuple[
-            Path,
-            tuple[
-                ImageHash,
-                ImageHash,
-                ImageHash,
-                ImageHash,
-            ],
-            tuple[int, int],
-        ]
-    ] = []
-
     new_hash_count = 0
     with click.progressbar(found_files, label="Hashing wallpapers") as progress:
         for filename in progress:
             try:
                 if not is_hashed(filename):
-                    image = Image.open(filename)
-                    phash = imagehash.phash(image)
-                    dhash = imagehash.dhash(image)
-                    color = imagehash.colorhash(image)
-                    average = imagehash.average_hash(image)  # pyright: ignore[reportUnknownMemberType]
+                    with Image.open(filename) as image:
+                        phash = imagehash.phash(image)
+                        dhash = imagehash.dhash(image)
+                        color = imagehash.colorhash(image)
+                        average = imagehash.average_hash(image)  # pyright: ignore[reportUnknownMemberType]
 
-                    store_hash(filename, (phash, dhash, color, average), image.size)
-                    new_hash_count += 1
-                    hashes.append(
-                        (filename, (phash, dhash, color, average), image.size)
-                    )
+                        store_hash(filename, (phash, dhash, color, average), image.size)
+                        new_hash_count += 1
                 else:
-                    filename, phash, dhash, color, average, image_size = fetch_hash(  # pyright: ignore[reportGeneralTypeIssues, reportUnknownVariableType]
+                    filename, phash, dhash, color, average, _image_size = fetch_hash(  # pyright: ignore[reportGeneralTypeIssues, reportUnknownVariableType]
                         filename
                     )
-                    hashes.append(
-                        (  # pyright: ignore[reportUnknownArgumentType]
-                            filename,
-                            (
-                                hex_to_hash(phash),
-                                hex_to_hash(dhash),
-                                hex_to_flathash(color, 7),
-                                hex_to_hash(average),
-                            ),
-                            image_size,
-                        )
-                    )
 
-            except SkipUnsupportedImage as e:
+            except UnidentifiedImageError as e:
                 click.secho(f"Error hashing {filename}: {e}", err=True, fg="red")
                 continue
 
@@ -260,8 +225,7 @@ def compare_hashes(hash: str, threshold: int = 5, output: Path | None = None):
     if output:
         with open(output, "tw", encoding="utf-8") as fd:
             click.echo(f"Found {len(results)} possible similar images.", file=stderr)
-            for result in sorted(results, key=lambda e: e[2]):
-                file_a, file_b, distance = result
-            click.echo(
-                f"hash={hash};distance={distance};{file_a[0]};{file_b[0]}", file=fd
-            )
+            for a_file, b_file, distance in sorted(results, key=lambda e: e[2]):
+                click.echo(
+                    f"hash={hash};distance={distance};{a_file[0]};{b_file[0]}", file=fd
+                )
