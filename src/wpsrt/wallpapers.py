@@ -101,7 +101,6 @@ def sort_wallpapers(
                     _ = move_wallpaper(filename, target_subdir_fname)
                 moved_files += 1
             except SkipUnsupportedImage:
-                skipped_files += 1
                 continue
             except AttributeError as ex:
                 click.secho(
@@ -115,4 +114,4 @@ def sort_wallpapers(
         click.echo(f"- SFW {sfw_files:>11} file(s)")
         click.echo("-" * 25)
     click.echo(f"- Moved {moved_files:>9} file(s)")
-    click.echo(f"- Skipped {skipped_files:>7} file(s)")
+    click.echo(f"- Skipped {SkipUnsupportedImage.count():>7} file(s)")
