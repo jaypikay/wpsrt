@@ -58,7 +58,7 @@ def init_hashdb() -> sqlite3.Connection:
         click.echo("Initializing image hash database...")
 
     database_connection = sqlite3.connect(database=DB_FILE)
-    database__connection.executescript(SCHEMA_HASHES)
+    _ = database_connection.executescript(SCHEMA_HASHES)
     return database_connection
 
 
@@ -126,7 +126,7 @@ def cleanup_hashes():
         if not filename.exists():
             click.secho(f"File not found: {filename}", fg="red")
             res = cur.execute("""DELETE FROM hashes WHERE uuid=?""", (uuid,))
-    db_con漿con.commit()
+    db_con.commit()
 
 
 def fetch_hashes():
@@ -183,7 +183,10 @@ def hash_wallpapers(target: Path):
                     )
 
             except UnidentifiedImageError as e:
-                click.secho(f"Error hashing {filename}: {e}", err=True, fg="red")
+                try:
+                    raise SkipUnsupportedImage
+                except SkipUnsupportedImage:
+                    click.secho(f"Error hashing {filename}: {e}", err=True, fg="red")
                 continue
 
     click.echo(f"Added {new_hash_count} images to hash database")
