@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Any
 
 import click
 
+from wpsrt.tools.log import setup_logging
 from wpsrt.wallpapers import scan_directory
+
+logger = logging.getLogger(__name__)
 
 
 def grep_beautifier(classification: list[dict[str, Any]]) -> str:
@@ -17,6 +21,7 @@ def grep_beautifier(classification: list[dict[str, Any]]) -> str:
 def analyse_image(detector: Any, image: str) -> None:
     """Detects content of an image file and prints formatted output."""
     classification = detector.detect(image)
+    logger.debug("Detected %s for %s", grep_beautifier(classification), image)
     click.echo(f"{image}:nudenet:{grep_beautifier(classification)}")
 
 
@@ -37,17 +42,21 @@ analyze_image = analyse_image
 )
 def nsfw_inspect(nsfw_model: Path | None, target: Path) -> None:
     """Inspects wallpapers using NudeDetector and prints classifications."""
+    setup_logging()
     from nudenet import NudeDetector
 
     if nsfw_model and Path(nsfw_model).exists():
+        logger.info("Initializing NudeDetector with custom model %s", nsfw_model)
         detector = NudeDetector(model_path=str(nsfw_model))
     else:
+        logger.info("Initializing NudeDetector with default model")
         detector = NudeDetector()
 
     target = Path(target)
     if target.is_dir():
         found_files = [f.as_posix() for f in scan_directory(target)]
         msg = " this may take a while, please wait" if len(found_files) > 100 else ""
+        logger.info("Processing %d file(s) from %s", len(found_files), target)
         click.echo(f"Processing {len(found_files)}{msg}...", err=True)
         for fname in found_files:
             analyse_image(detector, fname)

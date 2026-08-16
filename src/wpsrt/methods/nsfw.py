@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Any
 
 from nudenet import NudeDetector
+
+logger = logging.getLogger(__name__)
 
 FOLDER_PREFIX = "rating"
 
@@ -34,6 +37,7 @@ def get_detector() -> NudeDetector:
     """Returns the NudeDetector instance, instantiating it lazily if needed."""
     global _detector
     if _detector is None:
+        logger.info("Initializing NudeDetector with default model")
         _detector = NudeDetector()
     return _detector
 
@@ -41,6 +45,7 @@ def get_detector() -> NudeDetector:
 def reinitialize_detector(onnx_model_path: Path | str) -> None:
     """Reinitializes the detector with a custom ONNX model path."""
     global _detector
+    logger.info("Reinitializing NudeDetector with model %s", onnx_model_path)
     _detector = NudeDetector(model_path=str(onnx_model_path))
 
 
@@ -78,5 +83,6 @@ def process_file(filename: Path) -> Path:
     if detection:
         exceeds = exceeds_nsfw_threshold(detection)
         if exceeds:
+            logger.debug("NSFW classes exceeded for %s: %s", filename, exceeds)
             return Path(f"{FOLDER_PREFIX}/NSFW/{filename.name}")
     return Path(f"{FOLDER_PREFIX}/SFW/{filename.name}")

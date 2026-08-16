@@ -8,9 +8,14 @@ removing duplicates based on their hash.
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 import click
+
+from wpsrt.tools.log import setup_logging
+
+logger = logging.getLogger(__name__)
 
 
 @click.command()
@@ -54,8 +59,16 @@ def wpsort(
 
     - 'clip': Sorts wallpapers into category subdirectories using CLIP.
     """
+    setup_logging()
     source = Path(source)
     target = Path(target)
+    logger.info(
+        "wpsort invoked: mode=%s source=%s target=%s dry_run=%s",
+        mode,
+        source,
+        target,
+        dry_run,
+    )
     if not target.exists() and not dry_run:
         target.mkdir(parents=True, exist_ok=True)
 
@@ -116,7 +129,15 @@ def wphash(
 
         wphash -m compare -o similarities.dhash
     """
+    setup_logging()
     target = Path(target)
+    logger.info(
+        "wphash invoked: mode=%s hash_method=%s threshold=%s target=%s",
+        mode,
+        hash_method,
+        threshold,
+        target,
+    )
     if mode == "hash":
         from .tools.hashing import hash_wallpapers
 
@@ -152,10 +173,18 @@ def wphash(
 )
 def wpconvert(extension: str, delete: bool, source: Path) -> None:
     """Convert images with specific extension to PNG."""
+    setup_logging()
     source = Path(source)
+    logger.info(
+        "wpsrt-convert invoked: extension=%s delete=%s source=%s",
+        extension,
+        delete,
+        source,
+    )
 
     if extension.lower().strip(".") == "gif":
         click.secho("Cannot convert gif to png!", fg="red")
+        logger.warning("Refused to convert gif to png for source=%s", source)
         return
 
     from .tools.converter import convert_wallpapers

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import enum
+import logging
 import sqlite3
 from itertools import combinations
 from pathlib import Path
@@ -15,6 +16,8 @@ from PIL import Image, UnidentifiedImageError
 from xdg_base_dirs import xdg_data_home
 
 from wpsrt.wallpapers import scan_directory
+
+logger = logging.getLogger(__name__)
 
 SCHEMA_HASHES = """CREATE TABLE IF NOT EXISTS hashes (
     uuid PRIMARY KEY,
@@ -59,6 +62,7 @@ def init_hashdb() -> sqlite3.Connection:
 
     if not DB_FILE.exists():
         click.echo("Initializing image hash database...")
+        logger.info("Initializing image hash database at %s", DB_FILE)
 
     database_connection = sqlite3.connect(database=DB_FILE)
     _ = database_connection.executescript(SCHEMA_HASHES)
@@ -153,10 +157,12 @@ def cleanup_hashes() -> None:
         uuid, fname = row[0], Path(row[1])
         if not fname.exists():
             click.secho(f"File not found: {fname}", fg="red")
+            logger.warning("Removing hash entry for missing file: %s", fname)
             missing_uuids.append((uuid,))
     if missing_uuids:
         cur.executemany("""DELETE FROM hashes WHERE uuid=?""", missing_uuids)
         db_con.commit()
+        logger.info("Removed %d stale hash entries", len(missing_uuids))
 
 
 def fetch_hashes() -> list[tuple[Any, ...]]:
@@ -174,6 +180,7 @@ def hash_wallpapers(target: Path) -> None:
     _ = init_hashdb()
 
     click.echo(f"Hashing wallpaper {target}...")
+    logger.info("Hashing wallpapers in %s", target)
     if target.is_file():
         found_files = [target]
     else:
@@ -215,6 +222,7 @@ def hash_wallpapers(target: Path) -> None:
                         pending_records.clear()
                 except UnidentifiedImageError as e:
                     click.secho(f"Error hashing {filename}: {e}", err=True, fg="red")
+                    logger.warning("Error hashing %s: %s", filename, e)
                     continue
 
     if pending_records:
@@ -229,6 +237,12 @@ def compare_hashes(
     """Compares stored hashes and outputs potential duplicates based on threshold."""
     hashes = fetch_hashes()
     hashcol = HashColumn[hash_method].value
+    logger.info(
+        "Comparing %d hash(es) using %s (threshold=%d)",
+        len(hashes),
+        hash_method,
+        threshold,
+    )
 
     hashlist = []
     with click.progressbar(
@@ -266,3 +280,4 @@ def compare_hashes(
                     f"hash={hash_method};distance={distance};{a_file[0]};{b_file[0]}",
                     file=fd,
                 )
+        logger.info("Wrote %d similarity result(s) to %s", len(results), output)
