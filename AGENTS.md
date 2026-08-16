@@ -32,6 +32,7 @@ wpsrt/
         __init__.py 
         converter.py      # Utilities for converting image formats
         hashing.py        # Image hashing library and hash database management
+        log.py             # Structured logging setup (~/.local/var/log/wpsrt.log)
       __init__.py
       errors.py           # Custom Exception classes
       inpsector.py        # Used for NudeDetector module as assisting tool

@@ -11,6 +11,7 @@ It includes functions to:
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Generator
 from pathlib import Path
 
@@ -18,6 +19,8 @@ import click
 
 from wpsrt.errors import SkipUnsupportedImage, UnknownSortMethod
 from wpsrt.methods import aspectratio, resolution
+
+logger = logging.getLogger(__name__)
 
 
 def scan_directory(directory: Path) -> Generator[Path, None, None]:
@@ -41,7 +44,9 @@ def move_wallpaper(wallpaper: Path, target: Path) -> Path:
         The Path object of the moved wallpaper file at its new location.
     """
     target.parent.mkdir(parents=True, exist_ok=True)
-    return wallpaper.rename(target)
+    moved = wallpaper.rename(target)
+    logger.debug("Moved %s -> %s", wallpaper, moved)
+    return moved
 
 
 def sort_wallpapers(
@@ -59,8 +64,16 @@ def sort_wallpapers(
         dry_run: If True, preview sorting without moving files.
     """
     SkipUnsupportedImage.reset_count()
+    logger.info(
+        "Starting sort: mode=%s source=%s target=%s dry_run=%s",
+        mode,
+        source,
+        target,
+        dry_run,
+    )
     click.echo(f"Scanning wallpaper directory {source}...")
     found_files = list(scan_directory(source))  # Collect all wallpapers first
+    logger.info("Found %d file(s) to process", len(found_files))
     moved_files = 0
     sfw_files = 0
     nsfw_files = 0
@@ -91,6 +104,7 @@ def sort_wallpapers(
                             fg="yellow",
                             err=True,
                         )
+                        logger.error("Unknown sorting method specified: %s", mode)
                         raise UnknownSortMethod
 
                 target_subdir_fname = target / fname
@@ -98,11 +112,13 @@ def sort_wallpapers(
                     _ = move_wallpaper(filename, target_subdir_fname)
                 moved_files += 1
             except SkipUnsupportedImage:
+                logger.warning("Skipping unsupported image: %s", filename)
                 continue
             except AttributeError as ex:
                 click.secho(
                     f"ERROR: {ex} while processing {filename}.", fg="red", err=True
                 )
+                logger.error("Error processing %s: %s", filename, ex)
                 continue
 
     click.echo(f"\nSummary\n{'=' * 25}")
@@ -112,3 +128,10 @@ def sort_wallpapers(
         click.echo("-" * 25)
     click.echo(f"- Moved {moved_files:>9} file(s)")
     click.echo(f"- Skipped {SkipUnsupportedImage.count():>7} file(s)")
+    logger.info(
+        "Finished sort: moved=%d skipped=%d nsfw=%d sfw=%d",
+        moved_files,
+        SkipUnsupportedImage.count(),
+        nsfw_files,
+        sfw_files,
+    )
