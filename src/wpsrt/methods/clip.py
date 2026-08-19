@@ -9,6 +9,8 @@ import click
 import torch
 from PIL import Image, UnidentifiedImageError
 
+from wpsrt.tools.device import get_torch_device
+
 logger = logging.getLogger(__name__)
 
 FOLDER_PREFIX = "rating"
@@ -179,7 +181,10 @@ def _encode_label_embeddings(model: Any) -> Any:
         for template in PROMPT_TEMPLATES
     ]
     embeddings = model.encode(
-        prompts, convert_to_tensor=True, normalize_embeddings=True
+        prompts,
+        convert_to_tensor=True,
+        normalize_embeddings=True,
+        device=str(get_torch_device()),
     )
     averaged = embeddings.reshape(len(LABELS), len(PROMPT_TEMPLATES), -1).mean(dim=1)
     return torch.nn.functional.normalize(averaged, dim=-1)
@@ -190,8 +195,9 @@ def _get_model_and_embeddings() -> tuple[Any, Any]:
     if _model is None or _embeddings is None:
         from sentence_transformers import SentenceTransformer
 
-        logger.info("Loading CLIP model clip-ViT-B-32")
-        _model = SentenceTransformer("clip-ViT-B-32")
+        device = get_torch_device()
+        logger.info("Loading CLIP model clip-ViT-B-32 on %s", device)
+        _model = SentenceTransformer("clip-ViT-B-32").to(device)
         _embeddings = _encode_label_embeddings(_model)
     return _model, _embeddings
 
@@ -209,6 +215,7 @@ def classify_scores(cos_scores: Any) -> tuple[str, str, float]:
         A tuple of the winning class name, the best-matching label and the
         confidence of the winning class in the range ``0.0`` to ``1.0``.
     """
+    cos_scores = cos_scores.detach().cpu()
     probs = torch.softmax(cos_scores.flatten() * LOGIT_SCALE, dim=-1)
     class_probs = torch.zeros(len(CLASSES), dtype=probs.dtype)
     class_probs.index_add_(0, LABEL_CLASS_INDEX, probs)
@@ -226,7 +233,10 @@ def score_file(filename: Path) -> float:
         with Image.open(filename) as image:
             rgb_image = image.convert("RGB")
             img = model.encode(
-                [rgb_image], convert_to_tensor=True, normalize_embeddings=True
+                [rgb_image],
+                convert_to_tensor=True,
+                normalize_embeddings=True,
+                device=str(get_torch_device()),
             )
             cos_scores = util.cos_sim(img, embeddings)
             _, _, confidence = classify_scores(cos_scores)
@@ -266,7 +276,12 @@ def process_file(filename: Path) -> Path:
     from sentence_transformers import util
 
     model, embeddings = _get_model_and_embeddings()
-    img = model.encode([rgb_image], convert_to_tensor=True, normalize_embeddings=True)
+    img = model.encode(
+        [rgb_image],
+        convert_to_tensor=True,
+        normalize_embeddings=True,
+        device=str(get_torch_device()),
+    )
     cos_scores = util.cos_sim(img, embeddings)
     classification, label_name, confidence = classify_scores(cos_scores)
 

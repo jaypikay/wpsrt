@@ -2943,7 +2943,6 @@ dependencies = [
     { name = "nudenet" },
     { name = "pillow" },
     { name = "sentence-transformers" },
-    { name = "tensorflow-rocm" },
     { name = "torch", version = "2.10.0", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-5-wpsrt-metal' or (extra == 'extra-5-wpsrt-cuda' and extra == 'extra-5-wpsrt-rocm') or (extra != 'extra-5-wpsrt-cuda' and extra != 'extra-5-wpsrt-rocm')" },
     { name = "torch", version = "2.10.0+cu130", source = { registry = "https://download.pytorch.org/whl/cu130" }, marker = "extra == 'extra-5-wpsrt-cuda' or (extra == 'extra-5-wpsrt-metal' and extra == 'extra-5-wpsrt-rocm')" },
     { name = "torch", version = "2.10.0+rocm7.2.0.lw.gitb6ee5fde", source = { registry = "https://repo.radeon.com/rocm/manylinux/rocm-rel-7.2/" }, marker = "(extra == 'extra-5-wpsrt-cuda' and extra == 'extra-5-wpsrt-metal') or (extra != 'extra-5-wpsrt-metal' and extra == 'extra-5-wpsrt-rocm') or (extra != 'extra-5-wpsrt-cuda' and extra == 'extra-5-wpsrt-rocm')" },
@@ -2959,6 +2958,7 @@ metal = [
     { name = "torch", version = "2.10.0", source = { registry = "https://pypi.org/simple" } },
 ]
 rocm = [
+    { name = "tensorflow-rocm" },
     { name = "torch", version = "2.10.0+rocm7.2.0.lw.gitb6ee5fde", source = { registry = "https://repo.radeon.com/rocm/manylinux/rocm-rel-7.2/" } },
     { name = "triton", version = "3.6.0+rocm7.2.0.gitba5c1517", source = { registry = "https://repo.radeon.com/rocm/manylinux/rocm-rel-7.2/" } },
     { name = "triton-kernels" },
@@ -2978,7 +2978,7 @@ requires-dist = [
     { name = "nudenet", specifier = ">=3.4.2" },
     { name = "pillow", specifier = ">=11.0.0,<12" },
     { name = "sentence-transformers", specifier = ">=5.3.0" },
-    { name = "tensorflow-rocm", index = "https://repo.radeon.com/rocm/manylinux/rocm-rel-7.2/" },
+    { name = "tensorflow-rocm", marker = "extra == 'rocm'", index = "https://repo.radeon.com/rocm/manylinux/rocm-rel-7.2/" },
     { name = "torch" },
     { name = "torch", marker = "extra == 'cuda'", index = "https://download.pytorch.org/whl/cu130", conflict = { package = "wpsrt", extra = "cuda" } },
     { name = "torch", marker = "extra == 'metal'", index = "https://pypi.org/simple", conflict = { package = "wpsrt", extra = "metal" } },

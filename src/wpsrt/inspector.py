@@ -43,14 +43,11 @@ analyze_image = analyse_image
 def nsfw_inspect(nsfw_model: Path | None, target: Path) -> None:
     """Inspects wallpapers using NudeDetector and prints classifications."""
     setup_logging()
-    from nudenet import NudeDetector
+    from wpsrt.methods.nsfw import create_detector
 
-    if nsfw_model and Path(nsfw_model).exists():
-        logger.info("Initializing NudeDetector with custom model %s", nsfw_model)
-        detector = NudeDetector(model_path=str(nsfw_model))
-    else:
-        logger.info("Initializing NudeDetector with default model")
-        detector = NudeDetector()
+    detector = create_detector(
+        nsfw_model if nsfw_model and Path(nsfw_model).exists() else None
+    )
 
     target = Path(target)
     if target.is_dir():

@@ -10,7 +10,6 @@ dependencies = [
     "nudenet>=3.4.2",
     "pillow>=11.0.0,<12",
     "torch",
-    "tensorflow-rocm",
     "sentence-transformers>=5.3.0",
     "xdg-base-dirs>=6.0.2",
 ]
@@ -18,7 +17,7 @@ dependencies = [
 [project.optional-dependencies]
 cuda = ["torch", "triton"]
 metal = ["torch"]
-rocm = ["torch", "triton", "triton-kernels"]
+rocm = ["torch", "triton", "triton-kernels", "tensorflow-rocm"]
 
 [tool.uv]
 conflicts = [

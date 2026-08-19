@@ -1,10 +1,15 @@
 from __future__ import annotations
 
 import logging
+import os
 from pathlib import Path
 from typing import Any
 
+import nudenet
+import onnxruntime
 from nudenet import NudeDetector
+
+from wpsrt.tools.device import onnx_providers
 
 logger = logging.getLogger(__name__)
 
@@ -33,12 +38,45 @@ NSFW_THRESHOLDS: dict[str, float] = {
 _detector: NudeDetector | None = None
 
 
+class ProviderAwareNudeDetector(NudeDetector):
+    """NudeDetector variant that picks onnxruntime execution providers explicitly.
+
+    The upstream ``NudeDetector`` accepts a ``providers`` argument but ignores
+    it, silently letting onnxruntime pick the first available execution
+    provider. This subclass hands the session an explicit provider list from
+    :func:`wpsrt.tools.device.onnx_providers`, preferring the AMD ROCm GPU
+    and falling back to the CPU provider.
+    """
+
+    def __init__(self, model_path: str | None = None, inference_resolution: int = 320):
+        model_file = (
+            os.path.join(os.path.dirname(nudenet.__file__), "320n.onnx")
+            if model_path is None
+            else model_path
+        )
+        self.onnx_session = onnxruntime.InferenceSession(
+            model_file, providers=onnx_providers()
+        )
+        model_inputs = self.onnx_session.get_inputs()
+        self.input_width = inference_resolution
+        self.input_height = inference_resolution
+        self.input_name = model_inputs[0].name
+
+
+def create_detector(model_path: str | Path | None = None) -> ProviderAwareNudeDetector:
+    """Creates a provider-aware NudeDetector for the given ONNX model."""
+    logger.info(
+        "Initializing NudeDetector%s",
+        f" with model {model_path}" if model_path else " with default model",
+    )
+    return ProviderAwareNudeDetector(model_path=str(model_path) if model_path else None)
+
+
 def get_detector() -> NudeDetector:
     """Returns the NudeDetector instance, instantiating it lazily if needed."""
     global _detector
     if _detector is None:
-        logger.info("Initializing NudeDetector with default model")
-        _detector = NudeDetector()
+        _detector = create_detector()
     return _detector
 
 
@@ -46,7 +84,7 @@ def reinitialize_detector(onnx_model_path: Path | str) -> None:
     """Reinitializes the detector with a custom ONNX model path."""
     global _detector
     logger.info("Reinitializing NudeDetector with model %s", onnx_model_path)
-    _detector = NudeDetector(model_path=str(onnx_model_path))
+    _detector = create_detector(onnx_model_path)
 
 
 def has_identifier_above_threshold(
