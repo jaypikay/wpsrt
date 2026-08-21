@@ -1,4 +1,4 @@
-# Wpsrt v2.5.2 - Command Usage Overview
+# Wpsrt v2.6.1 - Command Usage Overview
 
 # wpsort
 ```
@@ -12,28 +12,22 @@ Usage: wpsrt  [OPTIONS] [SOURCE] [TARGET]
   resolution (e.g., '1920x1080').
 
   - 'ratio': Sorts wallpapers into subdirectories named after their aspect
-  ratio (e.g., '16x9').
+  ratio (e.g., '16:9').
 
-  - 'hash': Calculates and displays perceptual hashes of wallpapers in the
-  target directory. (Note: This mode currently only identifies potential
-  duplicates by hash, it does not remove them).
+  - 'nsfw': Sorts wallpapers by SFW / NSFW content.
 
-  Args:
-
-  mode: The sorting mode to use ('resolution', 'ratio', or 'hash'). source:
-  The path to the directory containing the wallpapers to sort. target: The
-  path to the directory where the sorted wallpapers will be placed. If it
-  doesn't exist, it will be created.
+  - 'clip': Sorts wallpapers into category subdirectories using CLIP.
 
 Options:
   -m, --mode [resolution|ratio|nsfw|clip]
-                                  Sort by resolution or aspect ratio.
-  -n, --nsfw-model FILE
-  -d, --dry-run                   Do not perform any file actions
+                                  Sort by resolution, aspect ratio, NSFW
+                                  rating, or CLIP category.
+  -n, --nsfw-model FILE           Custom ONNX model path for NSFW detection.
+  -d, --dry-run                   Do not perform any file actions.
   --help                          Show this message and exit.
 ```
 
-# Wpsrt v2.5.2 - Command Usage Overview
+# Wpsrt v2.6.1 - Command Usage Overview
 
 # wphash
 ```
@@ -58,25 +52,27 @@ Options:
   --help                          Show this message and exit.
 ```
 
-# Wpsrt v2.5.2 - Command Usage Overview
+# Wpsrt v2.6.1 - Command Usage Overview
 
 # wpconvert
 ```
 Usage: wpsrt  [OPTIONS] [SOURCE]
 
-  Convert images by extension `extension` to PNG.
+  Convert images with specific extension to PNG.
 
 Options:
   -e, --extension TEXT  Convert of type EXT to png
-  -d, --delete BOOLEAN  Remove original file after conversion
+  -d, --delete          Remove original file after conversion
   --help                Show this message and exit.
 ```
 
-# Wpsrt v2.5.2 - Command Usage Overview
+# Wpsrt v2.6.1 - Command Usage Overview
 
 # nsfw-inspect
 ```
 Usage: wpsrt  [OPTIONS] [TARGET]
+
+  Inspects wallpapers using NudeDetector and prints classifications.
 
 Options:
   -n, --nsfw-model FILE
