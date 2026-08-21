@@ -90,6 +90,10 @@ def sort_wallpapers(
                         from wpsrt.methods import clip
 
                         fname = clip.process_file(filename)
+                        if "NSFW" in fname.parts:
+                            nsfw_files += 1
+                        else:
+                            sfw_files += 1
                     case "nsfw":
                         from wpsrt.methods import nsfw
 
