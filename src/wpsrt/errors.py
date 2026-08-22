@@ -21,5 +21,23 @@ class SkipUnsupportedImage(Exception):
         cls._count = 0
 
 
+@final
+class SkipCLipSortingThreshold(Exception):
+    _count: int = 0
+
+    def __init__(self, message: str = "CLIP score below threshold") -> None:
+        self.message = message
+        SkipCLipSortingThreshold._count += 1
+        super().__init__(self.message)
+
+    @classmethod
+    def count(cls) -> int:
+        return cls._count
+
+    @classmethod
+    def reset_count(cls) -> None:
+        cls._count = 0
+
+
 class UnknownSortMethod(Exception):
     pass

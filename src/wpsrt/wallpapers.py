@@ -17,7 +17,11 @@ from pathlib import Path
 
 import click
 
-from wpsrt.errors import SkipUnsupportedImage, UnknownSortMethod
+from wpsrt.errors import (
+    SkipCLipSortingThreshold,
+    SkipUnsupportedImage,
+    UnknownSortMethod,
+)
 from wpsrt.methods import aspectratio, resolution
 
 logger = logging.getLogger(__name__)
@@ -117,6 +121,9 @@ def sort_wallpapers(
                 moved_files += 1
             except SkipUnsupportedImage:
                 logger.warning("Skipping unsupported image: %s", filename)
+                continue
+            except SkipCLipSortingThreshold:
+                logger.warning("Skipping file below CLIP threshold: %s", filename)
                 continue
             except AttributeError as ex:
                 click.secho(

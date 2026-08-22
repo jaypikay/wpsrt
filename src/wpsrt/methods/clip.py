@@ -10,6 +10,7 @@ import torch
 from PIL import Image, UnidentifiedImageError
 
 from wpsrt.tools.device import get_torch_device
+from wpsrt.config import Config
 
 logger = logging.getLogger(__name__)
 
@@ -284,6 +285,21 @@ def process_file(filename: Path) -> Path:
     )
     cos_scores = util.cos_sim(img, embeddings)
     classification, label_name, confidence = classify_scores(cos_scores)
+
+    # TODO: raise SkipCLipSortingThreshold if confidence < threshold (configurable)
+    if confidence < Config.clip_sorting_threshold:
+        click.secho(
+            f"WARN: Skipping file below CLIP threshold ({confidence:.2f} < {Config.clip_sorting_threshold}): {filename}",
+            fg="yellow",
+            err=True,
+        )
+        logger.warning(
+            "Skipping file below CLIP threshold (%0.2f < %0.2f): %s",
+            confidence,
+            Config.clip_sorting_threshold,
+            filename,
+        )
+        raise SkipCLipSortingThreshold from None
 
     target_path = Path(f"{FOLDER_PREFIX}/{classification}/{filename.name}")
     logger.info(

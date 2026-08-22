@@ -13,6 +13,7 @@ from pathlib import Path
 
 import click
 
+from wpsrt.config import Config
 from wpsrt.tools.log import setup_logging
 
 logger = logging.getLogger(__name__)
@@ -23,7 +24,7 @@ logger = logging.getLogger(__name__)
     "-m",
     "--mode",
     type=click.Choice(["resolution", "ratio", "nsfw", "clip"]),
-    default="resolution",
+    default=Config.sorting_algorithm,
     help="Sort by resolution, aspect ratio, NSFW rating, or CLIP category.",
 )
 @click.option(
@@ -37,12 +38,12 @@ logger = logging.getLogger(__name__)
 @click.argument(
     "source",
     type=click.Path(exists=True, file_okay=False, dir_okay=True),
-    default=Path("~/Pictures/wallpapers").expanduser(),
+    default=Path(Config.source_directory).expanduser(),
 )
 @click.argument(
     "target",
     type=click.Path(exists=False, file_okay=False, dir_okay=True),
-    default=Path("~/Pictures/wallpapers").expanduser(),
+    default=Path(Config.target_directory).expanduser(),
 )
 def wpsort(
     mode: str, nsfw_model: Path | None, dry_run: bool, source: Path, target: Path
@@ -59,7 +60,7 @@ def wpsort(
 
     - 'clip': Sorts wallpapers into category subdirectories using CLIP.
     """
-    setup_logging()
+    _ = setup_logging()
     source = Path(source)
     target = Path(target)
     logger.info(
@@ -129,7 +130,7 @@ def wphash(
 
         wphash -m compare -o similarities.dhash
     """
-    setup_logging()
+    _ = setup_logging()
     target = Path(target)
     logger.info(
         "wphash invoked: mode=%s hash_method=%s threshold=%s target=%s",
@@ -173,7 +174,7 @@ def wphash(
 )
 def wpconvert(extension: str, delete: bool, source: Path) -> None:
     """Convert images with specific extension to PNG."""
-    setup_logging()
+    _ = setup_logging()
     source = Path(source)
     logger.info(
         "wpsrt-convert invoked: extension=%s delete=%s source=%s",
