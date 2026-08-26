@@ -3,7 +3,6 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-import click
 from PIL import Image, UnidentifiedImageError
 
 from wpsrt.errors import SkipUnsupportedImage
@@ -20,8 +19,5 @@ def process_file(filename: Path) -> Path:
             xres, yres = image.size
         return Path(f"{FOLDER_PREFIX}/{xres}x{yres}/{filename.name}")
     except UnidentifiedImageError:
-        click.secho(
-            f"WARN: Skipping unsupported file: {filename}", fg="yellow", err=True
-        )
         logger.warning("Skipping unsupported file: %s", filename)
         raise SkipUnsupportedImage from None

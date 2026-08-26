@@ -8,6 +8,13 @@ import torch
 from wpsrt.tools import device
 
 
+@pytest.fixture(autouse=True)
+def reset_device_cache() -> None:
+    device.reset_torch_device()
+    yield
+    device.reset_torch_device()
+
+
 @pytest.fixture
 def no_gpu(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(torch, "cuda", SimpleNamespace(is_available=lambda: False))
@@ -58,6 +65,44 @@ def test_get_torch_device_env_force_cuda_without_gpu(
 ) -> None:
     monkeypatch.setenv(device._TORCH_DEVICE_ENV, "cuda")
     assert device.get_torch_device().type == "cpu"
+
+
+def test_get_torch_device_caches_result(
+    no_gpu, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    calls = []
+
+    def is_available() -> bool:
+        calls.append(1)
+        return False
+
+    monkeypatch.setattr(torch, "cuda", SimpleNamespace(is_available=is_available))
+
+    device.get_torch_device()
+    device.get_torch_device()
+
+    assert len(calls) == 1
+
+
+def test_get_torch_device_warns_amd_gpu_without_rocm(
+    no_gpu, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    monkeypatch.setattr(device, "_amd_gpu_present", lambda: True)
+    monkeypatch.setattr(torch.version, "hip", None)
+
+    with caplog.at_level("WARNING", logger="wpsrt.tools.device"):
+        result = device.get_torch_device()
+
+    assert result.type == "cpu"
+    assert "AMD GPU detected" in caplog.text
+    assert "uv sync --extra rocm" in caplog.text
+
+
+def test_amd_gpu_present_checks_kfd(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(device.Path, "exists", lambda self: True)
+    assert device._amd_gpu_present() is True
 
 
 def test_onnx_providers_cpu_fallback(monkeypatch: pytest.MonkeyPatch) -> None:

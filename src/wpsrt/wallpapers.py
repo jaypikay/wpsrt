@@ -75,7 +75,7 @@ def sort_wallpapers(
         target,
         dry_run,
     )
-    click.echo(f"Scanning wallpaper directory {source}...")
+    logger.info("Scanning wallpaper directory %s", source)
     found_files = list(scan_directory(source))  # Collect all wallpapers first
     logger.info("Found %d file(s) to process", len(found_files))
     moved_files = 0
@@ -107,11 +107,6 @@ def sort_wallpapers(
                         else:
                             sfw_files += 1
                     case _:
-                        click.secho(
-                            "WARN: Unknown sorting method specified.",
-                            fg="yellow",
-                            err=True,
-                        )
                         logger.error("Unknown sorting method specified: %s", mode)
                         raise UnknownSortMethod
 
@@ -126,19 +121,14 @@ def sort_wallpapers(
                 logger.warning("Skipping file below CLIP threshold: %s", filename)
                 continue
             except AttributeError as ex:
-                click.secho(
-                    f"ERROR: {ex} while processing {filename}.", fg="red", err=True
-                )
                 logger.error("Error processing %s: %s", filename, ex)
                 continue
 
-    click.echo(f"\nSummary\n{'=' * 25}")
+    logger.info(
+        "Summary: moved=%d skipped=%d", moved_files, SkipUnsupportedImage.count()
+    )
     if mode == "nsfw":
-        click.echo(f"- NSFW {nsfw_files:>10} file(s)")
-        click.echo(f"- SFW {sfw_files:>11} file(s)")
-        click.echo("-" * 25)
-    click.echo(f"- Moved {moved_files:>9} file(s)")
-    click.echo(f"- Skipped {SkipUnsupportedImage.count():>7} file(s)")
+        logger.info("NSFW %d, SFW %d", nsfw_files, sfw_files)
     logger.info(
         "Finished sort: moved=%d skipped=%d nsfw=%d sfw=%d",
         moved_files,

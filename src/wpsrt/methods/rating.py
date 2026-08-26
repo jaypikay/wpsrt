@@ -4,7 +4,6 @@ import logging
 import os
 from pathlib import Path
 
-import click
 from PIL import Image, UnidentifiedImageError
 
 logger = logging.getLogger(__name__)
@@ -31,9 +30,6 @@ def score_file(filename: Path) -> float:
             score = n2.predict_image(img)
             return score
     except UnidentifiedImageError:
-        click.secho(
-            f"Skipping unsupported image format: {filename}", fg="yellow", err=True
-        )
         logger.warning("Skipping unsupported image format: %s", filename)
     return -1
 

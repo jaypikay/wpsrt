@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import logging
 import os
+from pathlib import Path
 
 import torch
 
@@ -23,6 +24,8 @@ _ONNX_PREFERRED_ORDER = (
     "CUDAExecutionProvider",
     "CPUExecutionProvider",
 )
+
+_torch_device: torch.device | None = None
 
 
 def rocm_is_available() -> bool:
@@ -44,6 +47,24 @@ def _torch_device_override() -> str | None:
     return None if value in ("", "auto") else value
 
 
+def reset_torch_device() -> None:
+    """Clears the cached device so the next call re-detects it.
+
+    Used mainly in tests to isolate device selection between cases.
+    """
+    global _torch_device
+    _torch_device = None
+
+
+def _amd_gpu_present() -> bool:
+    """Reports whether an AMD GPU is present via the kernel driver device.
+
+    ``/dev/kfd`` is created by the amdgpu kernel driver when an AMD GPU is
+    available, without requiring any user-space ROCm packages.
+    """
+    return Path("/dev/kfd").exists()
+
+
 def get_torch_device() -> torch.device:
     """Selects the PyTorch device, preferring a ROCm GPU over CPU.
 
@@ -53,24 +74,41 @@ def get_torch_device() -> torch.device:
         3. A usable ROCm/CUDA accelerator is used when present.
         4. CPU is used otherwise.
 
+    The result is cached module-wide so that per-image calls do not re-run
+    GPU detection (and re-log the outcome) for every frame.
+
     Returns:
         The device torch model inference should run on.
     """
+    global _torch_device
+    if _torch_device is not None:
+        return _torch_device
+
     override = _torch_device_override()
     if override == "cpu":
         logger.info("Using CPU (forced via %s)", _TORCH_DEVICE_ENV)
-        return torch.device("cpu")
+        _torch_device = torch.device("cpu")
+        return _torch_device
     if override == "cuda" and not torch.cuda.is_available():
         logger.warning(
             "WPSRT_DEVICE=cuda requested but no GPU is usable; falling back to CPU"
         )
-        return torch.device("cpu")
+        _torch_device = torch.device("cpu")
+        return _torch_device
     if torch.cuda.is_available():
         backend = "AMD ROCm" if getattr(torch.version, "hip", None) else "CUDA"
         logger.info("Using %s GPU", backend)
-        return torch.device("cuda")
+        _torch_device = torch.device("cuda")
+        return _torch_device
+    if _amd_gpu_present():
+        logger.warning(
+            "AMD GPU detected but PyTorch cannot use it (installed build: %s). "
+            "Install the ROCm build with `uv sync --extra rocm`.",
+            torch.__version__,
+        )
     logger.info("No GPU detected; using CPU")
-    return torch.device("cpu")
+    _torch_device = torch.device("cpu")
+    return _torch_device
 
 
 def _onnx_providers_override() -> list[str]:

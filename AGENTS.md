@@ -4,16 +4,22 @@
 
 ## Commands
 
+This machine runs an AMD GPU, so the ROCm torch build is required. Every
+`uv` command must pass `--extra rocm`; a bare `uv run` re-syncs the
+environment back to the CUDA build and silently disables GPU support.
+
 ```bash
-uv run pytest                # Run test suite
-uv run pytest -x             # Stop on first failure
-uv run ruff check .          # Lint
-uv run ruff format .         # Format
-uv run python src/main.py    # Run the application
+uv sync --extra rocm                 # Install deps with the ROCm torch build
+uv run --extra rocm pytest           # Run test suite
+uv run --extra rocm pytest -x        # Stop on first failure
+uv run --extra rocm ruff check .     # Lint
+uv run --extra rocm ruff format .    # Format
+uv run --extra rocm python src/main.py  # Run the application
 ```
 
 > Do NOT use pip, pip install, or requirements.txt. This project uses UV.
 > Do NOT create virtual environments manually. UV manages environments automatically.
+> Always pass `--extra rocm` to `uv run`/`uv sync` on this machine.
 
 ## Project structure
 

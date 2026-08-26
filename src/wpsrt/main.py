@@ -88,7 +88,7 @@ def wpsort(
 @click.option(
     "-m",
     "--mode",
-    type=click.Choice(["clean", "hash", "compare"]),
+    type=click.Choice(["clean", "hash", "compare", "tag"]),
     default="hash",
     help="Operational mode selection",
 )
@@ -114,13 +114,31 @@ def wpsort(
     type=click.Path(dir_okay=False, writable=True, resolve_path=True),
     help="Output file for similarity results",
 )
+@click.option(
+    "--refresh",
+    is_flag=True,
+    default=False,
+    help="Re-tag all images, replacing previously stored tags (tag mode only).",
+)
+@click.option(
+    "--clean",
+    is_flag=True,
+    default=False,
+    help="Remove hash entries for images no longer on the filesystem (tag mode only).",
+)
 @click.argument(
     "target",
     type=click.Path(exists=True, file_okay=True, dir_okay=True),
     default=Path("~/Pictures/Wallpapers/").expanduser(),
 )
 def wphash(
-    target: Path, mode: str, hash_method: str, threshold: int, output: Path | None
+    target: Path,
+    mode: str,
+    hash_method: str,
+    threshold: int,
+    output: Path | None,
+    refresh: bool,
+    clean: bool,
 ) -> None:
     """Hash, compare and clean image hashes.
 
@@ -129,15 +147,21 @@ def wphash(
         wphash -m compare | swiv -t -i
 
         wphash -m compare -o similarities.dhash
+
+        wphash -m tag --refresh
+
+        wphash -m tag --clean
     """
     _ = setup_logging()
     target = Path(target)
     logger.info(
-        "wphash invoked: mode=%s hash_method=%s threshold=%s target=%s",
+        "wphash invoked: mode=%s hash_method=%s threshold=%s target=%s refresh=%s clean=%s",
         mode,
         hash_method,
         threshold,
         target,
+        refresh,
+        clean,
     )
     if mode == "hash":
         from .tools.hashing import hash_wallpapers
@@ -154,6 +178,72 @@ def wphash(
         from .tools.hashing import cleanup_hashes
 
         cleanup_hashes()
+
+    if mode == "tag":
+        from .tools.hashing import tag_wallpapers
+
+        tag_wallpapers(refresh=refresh, clean=clean)
+
+
+@click.command()
+@click.option(
+    "-l",
+    "--limit",
+    type=int,
+    default=None,
+    help="Maximum number of results to display.",
+)
+@click.argument("filters", nargs=-1, required=True)
+def wpsearch(filters: tuple[str, ...], limit: int | None) -> None:
+    """Search hashed wallpapers by vision-model tags.
+
+    Filters use a 'tag:' prefix. A quoted value is treated as a single tag
+    name when it matches exactly, otherwise it is split into individual tags
+    that must all be present on the image:
+
+        wpsearch tag:cyberpunk
+
+        wpsearch tag:'cyberpunk city'
+
+    is equivalent to:
+
+        wpsearch tag:cyberpunk tag:city
+    """
+    _ = setup_logging()
+    from .tools import hashing
+
+    known_tags = hashing.get_all_tags()
+    tag_names: list[str] = []
+    missing: list[str] = []
+    for raw in filters:
+        if not raw.startswith("tag:"):
+            raise click.BadParameter(
+                f"Unknown filter '{raw}', expected 'tag:NAME'", param_hint="FILTER"
+            )
+        value = raw[4:].strip().lower()
+        expanded = [value] if value in known_tags else value.split()
+        for name in expanded:
+            if name not in known_tags and name not in missing:
+                missing.append(name)
+        tag_names.extend(expanded)
+
+    if missing:
+        logger.warning("Tag(s) not found in database: %s", ", ".join(missing))
+
+    if not tag_names:
+        logger.warning("No tags given to search for.")
+        return
+
+    results = hashing.search_image_tags(tag_names)
+    if limit is not None:
+        results = results[:limit]
+
+    logger.info("wpsearch: filters=%s found=%d", filters, len(results))
+    click.echo(f"Found {len(results)} matching image(s):")
+    for filename, assigned in results:
+        click.echo(f"  {filename}")
+        for tag, confidence in assigned:
+            click.echo(f"      {tag} ({confidence:.2f})")
 
 
 @click.command()
@@ -184,7 +274,6 @@ def wpconvert(extension: str, delete: bool, source: Path) -> None:
     )
 
     if extension.lower().strip(".") == "gif":
-        click.secho("Cannot convert gif to png!", fg="red")
         logger.warning("Refused to convert gif to png for source=%s", source)
         return
 

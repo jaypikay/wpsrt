@@ -53,8 +53,7 @@ def nsfw_inspect(nsfw_model: Path | None, target: Path) -> None:
     if target.is_dir():
         found_files = [f.as_posix() for f in scan_directory(target)]
         msg = " this may take a while, please wait" if len(found_files) > 100 else ""
-        logger.info("Processing %d file(s) from %s", len(found_files), target)
-        click.echo(f"Processing {len(found_files)}{msg}...", err=True)
+        logger.info("Processing %d file(s) from %s%s", len(found_files), target, msg)
         for fname in found_files:
             analyse_image(detector, fname)
     else:

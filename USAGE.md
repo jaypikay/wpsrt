@@ -41,15 +41,48 @@ Usage: wpsrt  [OPTIONS] [TARGET]
 
       wphash -m compare -o similarities.dhash
 
+      wphash -m tag --refresh
+
+      wphash -m tag --clean
+
 Options:
-  -m, --mode [clean|hash|compare]
+  -m, --mode [clean|hash|compare|tag]
                                   Operational mode selection
   -h, --hash [phash|dhash|colorhash|average_hash]
                                   Hash used for comparison during similarity
                                   check
   -t, --threshold INTEGER         Threshold distance during similarity check
   -o, --output FILE               Output file for similarity results
+  --refresh                       Re-tag all images, replacing previously
+                                  stored tags (tag mode only).
+  --clean                         Remove hash entries for images no longer on
+                                  the filesystem (tag mode only).
   --help                          Show this message and exit.
+```
+
+# Wpsrt v2.6.1 - Command Usage Overview
+
+# wpsearch
+```
+Usage: wpsrt  [OPTIONS] FILTERS...
+
+  Search hashed wallpapers by vision-model tags.
+
+  Filters use a 'tag:' prefix. A quoted value is treated as a single tag name
+  when it matches exactly, otherwise it is split into individual tags that
+  must all be present on the image:
+
+      wpsearch tag:cyberpunk
+
+      wpsearch tag:'cyberpunk city'
+
+  is equivalent to:
+
+      wpsearch tag:cyberpunk tag:city
+
+Options:
+  -l, --limit INTEGER  Maximum number of results to display.
+  --help               Show this message and exit.
 ```
 
 # Wpsrt v2.6.1 - Command Usage Overview

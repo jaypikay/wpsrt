@@ -1,151 +1,20 @@
 from __future__ import annotations
 
 import logging
-from itertools import chain
 from pathlib import Path
 from typing import Any
 
-import click
 import torch
 from PIL import Image, UnidentifiedImageError
 
-from wpsrt.tools.device import get_torch_device
 from wpsrt.config import Config
+from wpsrt.errors import SkipCLipSortingThreshold, SkipUnsupportedImage
+from wpsrt.tags import CLASSES, LABELS, LOOKUP_TABLE
+from wpsrt.tools.device import get_torch_device
 
 logger = logging.getLogger(__name__)
 
 FOLDER_PREFIX = "rating"
-
-CLASS_LABELS: dict[str, list[str]] = {
-    "SFW": [
-        "abstract",
-        "animal",
-        "anime",
-        "architecture",
-        "art",
-        "building",
-        "car",
-        "cityscape",
-        "clothed person",
-        "clothing",
-        "comic",
-        "cyberpunk",
-        "cyborg",
-        "everyday scene",
-        "family",
-        "fantasy",
-        "food",
-        "furniture",
-        "group of people",
-        "house",
-        "interior design",
-        "landscape",
-        "manga",
-        "movie",
-        "nature",
-        "object",
-        "other",
-        "outdoor scene",
-        "painting",
-        "person",
-        "plant",
-        "portrait",
-        "post-apocalyptic",
-        "robots",
-        "scenery",
-        "sculpture",
-        "skeleton",
-        "skulls",
-        "space",
-        "sports",
-        "street",
-        "super hero",
-        "technology",
-        "tree",
-        "vehicle",
-        "water",
-    ],
-    "NSFW": [
-        "bare feet",
-        "belly",
-        "belly button",
-        "bikini",
-        "cleavage",
-        "erotic",
-        "kissing",
-        "lingerie",
-        "micro bikini",
-        "sexy",
-        "swimsuit",
-        "thighs",
-        "thong",
-        "underboob",
-        "underwear",
-        "adult content",
-        "anal sex",
-        "anus",
-        "ass",
-        "bdsm",
-        "bent over",
-        "big breasts",
-        "blowjob",
-        "bondage",
-        "boobs",
-        "breasts",
-        "butt",
-        "cameltoe",
-        "cum",
-        "cunnilingus",
-        "dick",
-        "dildo",
-        "ejaculation",
-        "erection",
-        "explicit",
-        "fellatio",
-        "fingering",
-        "genitals",
-        "hentai",
-        "intercourse",
-        "masturbation",
-        "mons veneris",
-        "mound of venus",
-        "naked",
-        "nipple",
-        "nipples",
-        "nude",
-        "nudity",
-        "onlyfans",
-        "orgasm",
-        "orgy",
-        "penetration",
-        "penis",
-        "phallus",
-        "porn",
-        "pornography",
-        "pubic hair",
-        "pubic mound",
-        "pussy",
-        "rule 34",
-        "semen",
-        "sex",
-        "sex toy",
-        "sexual act",
-        "sexual intercourse",
-        "small breasts",
-        "sperm",
-        "spread legs",
-        "striptease",
-        "testicles",
-        "tits",
-        "vagina",
-        "vibrator",
-        "vulva",
-        "xxx",
-    ],
-}
-LABELS = list(chain.from_iterable(CLASS_LABELS.values()))
-LOOKUP_TABLE = {v: k for k, lst in CLASS_LABELS.items() for v in lst}
-CLASSES = list(CLASS_LABELS)
 
 PROMPT_TEMPLATES: tuple[str, ...] = (
     "a photo of {label}",
@@ -167,19 +36,22 @@ _model: Any = None
 _embeddings: Any = None
 
 
-def _encode_label_embeddings(model: Any) -> Any:
-    """Embeds every label with the prompt ensemble and averages per label.
+def embed_with_prompt_ensemble(
+    model: Any, labels: list[str], templates: tuple[str, ...]
+) -> Any:
+    """Embeds labels with a prompt ensemble, averaging per label to remove
+    template-specific bias.
 
     Args:
         model: The loaded CLIP sentence-transformers model.
+        labels: The concepts to embed.
+        templates: Prompt templates, each containing a ``{label}`` placeholder.
 
     Returns:
-        A normalized tensor of shape ``(len(LABELS), embedding_dim)``.
+        A normalized tensor of shape ``(len(labels), embedding_dim)``.
     """
     prompts = [
-        template.format(label=label)
-        for label in LABELS
-        for template in PROMPT_TEMPLATES
+        template.format(label=label) for label in labels for template in templates
     ]
     embeddings = model.encode(
         prompts,
@@ -187,19 +59,38 @@ def _encode_label_embeddings(model: Any) -> Any:
         normalize_embeddings=True,
         device=str(get_torch_device()),
     )
-    averaged = embeddings.reshape(len(LABELS), len(PROMPT_TEMPLATES), -1).mean(dim=1)
+    averaged = embeddings.reshape(len(labels), len(templates), -1).mean(dim=1)
     return torch.nn.functional.normalize(averaged, dim=-1)
 
 
-def _get_model_and_embeddings() -> tuple[Any, Any]:
-    global _model, _embeddings
-    if _model is None or _embeddings is None:
+def _encode_label_embeddings(model: Any) -> Any:
+    """Embeds every rating label with the prompt ensemble and averages per label."""
+    return embed_with_prompt_ensemble(model, LABELS, PROMPT_TEMPLATES)
+
+
+def load_model() -> Any:
+    """Returns the shared CLIP sentence-transformers model, loading it once.
+
+    The model is cached module-wide so that sorting and tagging modes never
+    initialise the transformer twice, saving time and memory.
+
+    Returns:
+        The loaded ``SentenceTransformer`` instance.
+    """
+    global _model
+    if _model is None:
         from sentence_transformers import SentenceTransformer
 
         device = get_torch_device()
         logger.info("Loading CLIP model clip-ViT-B-32 on %s", device)
         _model = SentenceTransformer("clip-ViT-B-32").to(device)
-        _embeddings = _encode_label_embeddings(_model)
+    return _model
+
+
+def _get_model_and_embeddings() -> tuple[Any, Any]:
+    global _embeddings
+    if _embeddings is None:
+        _embeddings = _encode_label_embeddings(load_model())
     return _model, _embeddings
 
 
@@ -243,9 +134,6 @@ def score_file(filename: Path) -> float:
             _, _, confidence = classify_scores(cos_scores)
             return confidence
     except (UnidentifiedImageError, OSError):
-        click.secho(
-            f"Skipping unsupported image format: {filename}", fg="yellow", err=True
-        )
         logger.warning("Skipping unsupported image format: %s", filename)
     return -1.0
 
@@ -262,15 +150,11 @@ def process_file(filename: Path) -> Path:
     Raises:
         SkipUnsupportedImage: If the file cannot be read as an image.
     """
-    from wpsrt.errors import SkipUnsupportedImage
 
     try:
         with Image.open(filename) as image:
             rgb_image = image.convert("RGB")
     except OSError:
-        click.secho(
-            f"WARN: Skipping unsupported file: {filename}", fg="yellow", err=True
-        )
         logger.warning("Skipping unsupported file: %s", filename)
         raise SkipUnsupportedImage from None
 
@@ -287,16 +171,11 @@ def process_file(filename: Path) -> Path:
     classification, label_name, confidence = classify_scores(cos_scores)
 
     # TODO: raise SkipCLipSortingThreshold if confidence < threshold (configurable)
-    if confidence < Config.clip_sorting_threshold:
-        click.secho(
-            f"WARN: Skipping file below CLIP threshold ({confidence:.2f} < {Config.clip_sorting_threshold}): {filename}",
-            fg="yellow",
-            err=True,
-        )
+    if confidence < Config.clip_threshold:
         logger.warning(
             "Skipping file below CLIP threshold (%0.2f < %0.2f): %s",
             confidence,
-            Config.clip_sorting_threshold,
+            Config.clip_threshold,
             filename,
         )
         raise SkipCLipSortingThreshold from None

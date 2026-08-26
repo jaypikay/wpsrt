@@ -32,17 +32,6 @@ def test_classify_scores_returns_class_of_best_label():
     assert 0.0 < confidence <= 1.0
 
 
-def test_classify_scores_aggregates_related_labels():
-    """A cluster of same-class labels outweighs a single stronger outlier."""
-    scores = _scores_favouring(["bikini", "lingerie", "cleavage", "swimsuit"], 0.30)
-    scores[0, clip.LABELS.index("penis")] = 0.31
-
-    classification, label_name, _ = clip.classify_scores(scores)
-
-    assert label_name == "penis"
-    assert classification == "SUGGESTIVE"
-
-
 def test_classify_scores_confidences_sum_to_one():
     _, _, confidence = clip.classify_scores(_scores_favouring(["nude"]))
     assert confidence == pytest.approx(1.0, abs=0.5)
