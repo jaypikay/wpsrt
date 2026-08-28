@@ -440,7 +440,7 @@ def tag_wallpapers(
         top_k: Number of tags to assign per image.
         refresh: If True, re-tag all images, replacing existing tags.
         threshold: Minimum confidence required for a tag to be stored. Defaults
-            to ``Config.clip_threshold`` when None.
+            to ``Config.tagging_threshold`` when None.
         clean: If True, first remove hash entries (and their tags) for images
             that can no longer be accessed on the filesystem.
     """
@@ -452,7 +452,7 @@ def tag_wallpapers(
         cleanup_hashes()
 
     if threshold is None:
-        threshold = Config.clip_threshold
+        threshold = Config.tagging_threshold
 
     candidates = (
         sorted(Path(fname) for fname in get_hashed_filenames())

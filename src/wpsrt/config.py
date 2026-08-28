@@ -17,6 +17,9 @@ class Config:
     clip_threshold: float = field(
         default=0.8, metadata={"help": "CLIP score threshold"}
     )
+    tagging_threshold: float = field(
+        default=0.6, metadata={"help": "Tagging score threshold"}
+    )
 
     source_directory: str = field(
         default="~/Pictures/wallpapers/",
