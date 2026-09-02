@@ -64,7 +64,7 @@ Options:
 
 # wpsearch
 ```
-Usage: wpsrt  [OPTIONS] FILTERS...
+Usage: wpsrt  [OPTIONS] [FILTERS]...
 
   Search hashed wallpapers by vision-model tags.
 
@@ -80,8 +80,11 @@ Usage: wpsrt  [OPTIONS] FILTERS...
 
       wpsearch tag:cyberpunk tag:city
 
+  Use --list-tags to show all tags stored in the database.
+
 Options:
   -l, --limit INTEGER  Maximum number of results to display.
+  -t, --list-tags      List all used tags with counts instead of searching.
   --help               Show this message and exit.
 ```
 

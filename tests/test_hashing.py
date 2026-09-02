@@ -190,7 +190,7 @@ def test_tag_wallpapers_uses_config_threshold(
 
     hashing.tag_wallpapers()
 
-    assert received_thresholds == [hashing.Config.clip_threshold]
+    assert received_thresholds == [hashing.Config.tagging_threshold]
     assert hashing.get_tagged_filenames() == {img.as_posix()}
 
 
@@ -242,6 +242,58 @@ def test_get_all_tags(hash_db):
     hashing.store_image_tags(Path("/tmp/img1.jpg"), [("cyberpunk", 0.8), ("city", 0.6)])
 
     assert hashing.get_all_tags() == {"cyberpunk", "city"}
+
+
+def test_list_tags_counts_and_sorts(hash_db):
+    _insert_hash(hash_db, "u1", "/tmp/cyber1.jpg")
+    _insert_hash(hash_db, "u2", "/tmp/cyber2.jpg")
+    _insert_hash(hash_db, "u3", "/tmp/cyber3.jpg")
+    _insert_hash(hash_db, "u4", "/tmp/human1.jpg")
+    hashing.store_image_tags(
+        Path("/tmp/cyber1.jpg"), [("cyberpunk", 0.8), ("human", 0.6)]
+    )
+    hashing.store_image_tags(Path("/tmp/cyber2.jpg"), [("cyberpunk", 0.7)])
+    hashing.store_image_tags(Path("/tmp/cyber3.jpg"), [("cyberpunk", 0.7)])
+    hashing.store_image_tags(Path("/tmp/human1.jpg"), [("human", 0.9)])
+
+    assert hashing.list_tags() == [("cyberpunk", 3), ("human", 2)]
+
+
+def test_list_tags_excludes_unused_tags(hash_db):
+    _insert_hash(hash_db, "u1", "/tmp/img1.jpg")
+    hashing.store_image_tags(Path("/tmp/img1.jpg"), [("nature", 0.9)])
+    hashing.clear_image_tags(Path("/tmp/img1.jpg"))
+
+    assert hashing.list_tags() == []
+
+
+def test_wpsearch_list_tags_lists_used_tags(hash_db):
+    _insert_hash(hash_db, "u1", "/tmp/cyber1.jpg")
+    _insert_hash(hash_db, "u2", "/tmp/human1.jpg")
+    hashing.store_image_tags(
+        Path("/tmp/cyber1.jpg"), [("cyberpunk", 0.8), ("human", 0.6)]
+    )
+    hashing.store_image_tags(Path("/tmp/human1.jpg"), [("human", 0.9)])
+
+    result = CliRunner().invoke(wpsearch, ["--list-tags"])
+
+    assert result.exit_code == 0
+    assert result.output == (
+        "| TagName   | Count |\n"
+        "|-----------|-------|\n"
+        "| human     |     2 |\n"
+        "| cyberpunk |     1 |\n"
+    )
+
+
+def test_wpsearch_list_tags_short_option(hash_db):
+    _insert_hash(hash_db, "u1", "/tmp/img1.jpg")
+    hashing.store_image_tags(Path("/tmp/img1.jpg"), [("nature", 0.9)])
+
+    result = CliRunner().invoke(wpsearch, ["-t"])
+
+    assert result.exit_code == 0
+    assert "| nature" in result.output
 
 
 def test_search_image_tags_matches_all_required_tags(hash_db):

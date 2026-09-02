@@ -185,6 +185,16 @@ def wphash(
         tag_wallpapers(refresh=refresh, clean=clean)
 
 
+def _render_tags_table(rows: list[tuple[str, int]]) -> None:
+    """Print the list of used tags as an aligned table."""
+    tag_width = max(len("TagName"), *(len(name) for name, _ in rows))
+    count_width = max(len("Count"), *(len(str(count)) for _, count in rows))
+    click.echo(f"| {'TagName':<{tag_width}} | {'Count':>{count_width}} |")
+    click.echo(f"|{'-' * (tag_width + 2)}|{'-' * (count_width + 2)}|")
+    for name, count in rows:
+        click.echo(f"| {name:<{tag_width}} | {count:>{count_width}} |")
+
+
 @click.command()
 @click.option(
     "-l",
@@ -193,8 +203,15 @@ def wphash(
     default=None,
     help="Maximum number of results to display.",
 )
-@click.argument("filters", nargs=-1, required=True)
-def wpsearch(filters: tuple[str, ...], limit: int | None) -> None:
+@click.option(
+    "-t",
+    "--list-tags",
+    is_flag=True,
+    default=False,
+    help="List all used tags with counts instead of searching.",
+)
+@click.argument("filters", nargs=-1)
+def wpsearch(filters: tuple[str, ...], limit: int | None, list_tags: bool) -> None:
     """Search hashed wallpapers by vision-model tags.
 
     Filters use a 'tag:' prefix. A quoted value is treated as a single tag
@@ -205,12 +222,22 @@ def wpsearch(filters: tuple[str, ...], limit: int | None) -> None:
 
         wpsearch tag:'cyberpunk city'
 
-    is equivalent to:
+        is equivalent to:
 
         wpsearch tag:cyberpunk tag:city
+
+      Use --list-tags to show all tags stored in the database.
     """
     _ = setup_logging()
     from .tools import hashing
+
+    if list_tags:
+        rows = hashing.list_tags()
+        if not rows:
+            click.echo("No tags found.")
+            return
+        _render_tags_table(rows)
+        return
 
     known_tags = hashing.get_all_tags()
     tag_names: list[str] = []

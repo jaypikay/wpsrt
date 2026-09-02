@@ -3,7 +3,7 @@ name = "wpsrt"
 version = "2.7.0"
 description = ""
 authors = [{ name = "jpk", email = "jpk@goatpr0n.de" }]
-requires-python = ">=3.12"
+requires-python = ">=3.12,<3.14"
 dependencies = [
     "click>=8.1.8,<9",
     "imagehash>=4.3.2",
@@ -20,6 +20,7 @@ metal = ["torch"]
 rocm = ["torch", "triton", "triton-kernels", "tensorflow-rocm"]
 
 [tool.uv]
+constraint-dependencies = ["onnxruntime>=1.24.1"]
 conflicts = [
     [
         { extra = "cuda" },

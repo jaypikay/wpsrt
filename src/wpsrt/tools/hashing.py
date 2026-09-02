@@ -273,6 +273,25 @@ def get_all_tags() -> set[str]:
     return {row[0] for row in rows}
 
 
+def list_tags() -> list[tuple[str, int]]:
+    """Returns every used tag with the number of images it is assigned to.
+
+    Returns:
+        A list of ``(tag_name, count)`` tuples sorted by descending count,
+        then alphabetically by tag name.
+    """
+    db_con = init_hashdb()
+    cur = db_con.cursor()
+    rows = cur.execute(
+        """SELECT t.name, COUNT(it.image_uuid) AS cnt
+           FROM tags t
+           JOIN image_tags it ON it.tag_id = t.id
+           GROUP BY t.id, t.name
+           ORDER BY cnt DESC, t.name"""
+    ).fetchall()
+    return [(name, count) for name, count in rows]
+
+
 def search_image_tags(
     tag_names: list[str],
 ) -> list[tuple[str, list[tuple[str, float]]]]:
